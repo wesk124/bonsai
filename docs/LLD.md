@@ -223,7 +223,7 @@ messages never carry KV bytes.
 ### 1.6 Metrics — `metrics.rs`
 
 `SenderTimings`, `ReceiverTimings` and `HandoffReport` map one-to-one to the
-proposal's metrics (HLD §7):
+evaluation metrics (HLD §7):
 
 - `HandoffReport::handoff_latency_ns()` = sender `handoff_send_ns` + receiver
   `decode_wall_ns` + `cache_build_ns`.
@@ -438,7 +438,7 @@ already armed and releases the slot.
 
 `Throttle::new(bps, burst)` with `async acquire(bytes)` is a token bucket
 applied before each write. Combined with `write_shards = Some(1)` it creates
-the constrained-bandwidth conditions for hypothesis 2.
+the constrained-bandwidth conditions for H2 (HLD).
 
 ### 4.7 Threading model
 

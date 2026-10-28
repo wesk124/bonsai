@@ -149,7 +149,7 @@ impl Candidate {
     }
 }
 
-/// Adaptive precision (Ratul's suggestion).
+/// Adaptive precision.
 ///
 /// Per request: drop candidates whose offline quality loss at this context length
 /// exceeds `max_quality_loss`, then pick the lowest predicted handoff latency at

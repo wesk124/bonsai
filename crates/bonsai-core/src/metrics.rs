@@ -1,4 +1,4 @@
-//! Per-handoff measurements, mapped 1:1 to the metrics in the proposal.
+//! Per-handoff measurements, mapped 1:1 to the evaluation metrics (docs/HLD.md §7).
 //!
 //! Durations are measured on one host's monotonic clock each; cross-host
 //! timestamps are never subtracted. End-to-end numbers use the coordinator clock.

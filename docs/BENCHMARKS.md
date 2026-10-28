@@ -154,7 +154,7 @@ python -m bonsai_bench.workloads fixed --context-lens 1024,2048,4096,8192,16384,
 - **`sharegpt`** uses real chat prompts and reply lengths (Atom's "production"
   trace). It covers the same regime with real text.
 - **`fixed`** is a controlled context-length sweep. It is Bonsai's **primary**
-  systems workload, because the hypothesis is about long contexts, where the
+  systems workload, because H1 and H2 (HLD) are about long contexts, where the
   KV cache is hundreds of MB.
 
 The **load generator** (milestone 1, needs the control-plane TCP client) will
@@ -167,7 +167,7 @@ decode latency, throughput) next to Bonsai's handoff metrics (CONTROL_PLANE.md �
 
 ## 5. Full evaluation matrix
 
-| | Primary (proposal) | Secondary (migrated from Atom) |
+| | Primary | Secondary (migrated from Atom) |
 |---|---|---|
 | **Quality** | LongBench v1 QASPER and HotpotQA (F1); RULER single-needle at controlled lengths | B1 perplexity (WikiText2/PTB/C4); B2 zero-shot (6 tasks); B3 ablation + layer sensitivity |
 | **Systems** | `fixed` context sweep (1K–32K) × chunking × concurrency {1, 2, 4, 8} × bandwidth (line rate, 1 NIC, throttled 10–100 Gb/s), on 2 RDMA nodes | B4 codec microbenchmark; B5 `atom-lognormal` and `sharegpt` replay (no-regression check) |

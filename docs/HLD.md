@@ -6,11 +6,20 @@ encoded. A **data plane** compresses the cache on the prefill GPU, moves it
 with Perplexity's **fabric-lib** (RDMA, GPUDirect), and rebuilds it on the
 decode GPU.
 
-It is the system for the CSE 561 project *"Quantized KV-cache transfer over
-fabric-lib"* (see `../proposal.txt`). Model: **Qwen2.5-1.5B-Instruct**, BF16,
-through Hugging Face Transformers. Codecs: **BF16** (baseline), **INT8**, and
-**packed INT4**. The project's suggested extension, **adaptive precision**, is
-part of the core design (§6).
+Model: **Qwen2.5-1.5B-Instruct**, BF16, through Hugging Face Transformers.
+Codecs: **BF16** (baseline), **INT8**, **packed INT4**, and per-layer mixed
+precision chosen per request (**adaptive precision**, §6).
+
+**Hypotheses** the system is built to test:
+
+- **H1.** Quantizing the KV cache before transfer reduces total transmitted
+  bytes, metadata included, while keeping task accuracy/F1 within a fixed
+  tolerance of the BF16 baseline. INT8 is the conservative point; INT4
+  compresses more and loses more quality.
+- **H2.** On bandwidth-constrained links, some quantized configurations
+  reduce end-to-end KV handoff latency, because the transfer time saved
+  outweighs encode and decode overhead. The crossover depends on context
+  length and transfer chunk size.
 
 ---
 
@@ -23,7 +32,7 @@ part of the core design (§6).
 2. Make the encoding pluggable (BF16 / INT8 / INT4 / per-layer mixed) without
    changing anything else, so the configurations being compared differ *only*
    in the codec.
-3. Measure every quantity in the proposal for each handoff: bytes on the wire
+3. Measure every quantity the evaluation needs, for each handoff: bytes on the wire
    (including metadata), encode and decode overhead, handoff latency, TTFT,
    decode throughput, and temporary buffer usage.
 4. Make the knobs we sweep explicit: context length, chunk size, concurrency,
@@ -236,8 +245,6 @@ laptop.
 
 ## 6. Adaptive precision
 
-This answers the feedback: *"Adaptive precision could nicely round out the work."*
-
 Adaptive precision works at two levels, both built on the same frame format.
 
 **(a) Per-layer mixed precision (`PrecisionMap`)**
@@ -258,7 +265,7 @@ reconstruction error per layer), and then protect the top-k layers.
 For each request the coordinator:
 
 1. Drops candidate configs whose offline quality loss at this context-length
-   bucket exceeds the tolerance (the same tolerance as the hypothesis).
+   bucket exceeds the tolerance (the same tolerance as H1).
 2. Predicts handoff latency for each remaining candidate with a calibrated
    `CostModel`. The model accounts for encode and decode throughput, per-write
    and per-kernel fixed costs, pipelining across chunks, and progressive
@@ -284,7 +291,7 @@ All per-handoff numbers go into a `HandoffReport` (one JSONL line). Each
 duration is measured on a single host's monotonic clock; Bonsai never
 subtracts timestamps taken on different hosts.
 
-| Proposal metric | How it is measured |
+| Metric | How it is measured |
 |---|---|
 | Transmitted bytes (incl. metadata) | `wire_bytes` = sum of write lengths; `metadata_bytes` and `useful_bytes` reported separately |
 | Encode overhead | CUDA events around encode kernels (`encode_gpu_ns`) and time spent waiting for staging |
@@ -298,8 +305,6 @@ subtracts timestamps taken on different hosts.
 ---
 
 ## 8. Deployment and hardware
-
-This answers the question *"How do you plan to get two GPUDirect RDMA nodes?"*
 
 **Benchmark target: two GPUDirect RDMA nodes.** All latency, throughput and
 bandwidth results come from two separate nodes:
@@ -325,7 +330,7 @@ experiments that involve the network. Everything else runs elsewhere:
 | Pipeline, protocol and failure-path testing | Laptop or CI with `LoopbackTransport` | Same immediate semantics as fabric-lib |
 | Handoff latency, TTFT, throughput, bandwidth sweeps | **The two RDMA nodes** | This is what the network measurements require |
 
-**Bandwidth-constrained conditions** (hypothesis 2) are produced on the same
+**Bandwidth-constrained conditions** (H2) are produced on the same
 two nodes, without special hardware:
 
 - `write_shards = 1` uses one NIC instead of all of them.
@@ -351,7 +356,7 @@ line-rate runs.
 
 | Risk | Mitigation |
 |---|---|
-| At 400 Gb/s line rate, compression may never win on latency | That outcome still tests hypothesis 2; throttled and contention runs map the crossover point, and the cost model explains it |
+| At 400 Gb/s line rate, compression may never win on latency | That outcome still tests H2; throttled and contention runs map the crossover point, and the cost model explains it |
 | HF `DynamicCache` tensors are allocated per request, and registering them per request would be slow | Encode from them into a pre-registered staging ring (one extra read, no registration on the critical path) |
 | INT4 per-channel K requires chunk token boundaries aligned to group size | Enforced by the planner (`token_alignment`); chunk sizes in the sweep are multiples of 32 |
 | Late writes after an abort | Slot epochs in immediates + quarantine before reuse + new `HandoffId` on retry |

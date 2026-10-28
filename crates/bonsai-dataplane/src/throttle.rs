@@ -1,7 +1,7 @@
 //! Token-bucket egress limiter used to emulate bandwidth-constrained links.
 //!
 //! With ConnectX-7 / EFA at 100-400 Gb/s, compression rarely pays off; the
-//! second hypothesis is about constrained links, so the sender can cap its own
+//! second hypothesis (H2, docs/HLD.md) is about constrained links, so the sender can cap its own
 //! rate. Combined with `write_shards = 1` this gives a controllable bottleneck.
 
 use std::time::{Duration, Instant};
