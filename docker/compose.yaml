@@ -1,0 +1,48 @@
+# docker compose -f docker/compose.yaml build
+# docker compose -f docker/compose.yaml run --rm bonsai
+#
+# Run one container per node. Both nodes use host networking, so the fabric-lib
+# addresses and the bonsai-ctl TCP port (7000) are reachable directly.
+#
+# If your Docker version rejects the /dev/infiniband directory mapping, use
+# scripts/run-docker.sh instead (it lists each uverbs device), or list them below.
+services:
+  bonsai:
+    image: bonsai-dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        # Narrow to your GPU to speed up builds: "8.0" A100, "9.0a" H100, "10.0a" B200
+        TORCH_CUDA_ARCH_LIST: "8.0;9.0a;10.0a+PTX"
+    network_mode: host
+    ipc: host
+    init: true
+    shm_size: 32gb
+    volumes:
+      - ..:/app
+      - ${HF_HOME:-~/.cache/huggingface}:/root/.cache/huggingface
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - RUST_LOG=info
+    devices:
+      - /dev/infiniband:/dev/infiniband   # uverbs* + rdma_cm (ConnectX or EFA)
+      - /dev/gdrdrv:/dev/gdrdrv           # GDRCopy kernel module
+    cap_add:
+      - IPC_LOCK      # pin/register memory
+      - SYS_ADMIN     # pidfd_getfd (fabric-lib requirement)
+      - SYS_PTRACE    # pidfd_getfd (fabric-lib requirement)
+    security_opt:
+      - seccomp=unconfined
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    stdin_open: true
+    tty: true

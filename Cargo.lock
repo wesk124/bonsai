@@ -135,7 +135,7 @@ dependencies = [
 [[package]]
 name = "build-utils"
 version = "0.0.0"
-source = "git+https://github.com/perplexityai/pplx-garden#1ed972ed3f0bd5616c997c9507c25616c63394fc"
+source = "git+https://github.com/perplexityai/pplx-garden?rev=1ed972ed3f0bd5616c997c9507c25616c63394fc#1ed972ed3f0bd5616c997c9507c25616c63394fc"
 
 [[package]]
 name = "byteorder"
@@ -221,7 +221,7 @@ checksum = "a31eee39dddec8330830986fcd7625edb5a24ec90ea038215273bbc3adb08ac6"
 [[package]]
 name = "cuda-lib"
 version = "0.0.0"
-source = "git+https://github.com/perplexityai/pplx-garden#1ed972ed3f0bd5616c997c9507c25616c63394fc"
+source = "git+https://github.com/perplexityai/pplx-garden?rev=1ed972ed3f0bd5616c997c9507c25616c63394fc#1ed972ed3f0bd5616c997c9507c25616c63394fc"
 dependencies = [
  "bincode",
  "cuda-sys",
@@ -234,7 +234,7 @@ dependencies = [
 [[package]]
 name = "cuda-sys"
 version = "0.0.0"
-source = "git+https://github.com/perplexityai/pplx-garden#1ed972ed3f0bd5616c997c9507c25616c63394fc"
+source = "git+https://github.com/perplexityai/pplx-garden?rev=1ed972ed3f0bd5616c997c9507c25616c63394fc#1ed972ed3f0bd5616c997c9507c25616c63394fc"
 dependencies = [
  "bindgen",
  "build-utils",
@@ -243,7 +243,7 @@ dependencies = [
 [[package]]
 name = "cudart-sys"
 version = "0.0.0"
-source = "git+https://github.com/perplexityai/pplx-garden#1ed972ed3f0bd5616c997c9507c25616c63394fc"
+source = "git+https://github.com/perplexityai/pplx-garden?rev=1ed972ed3f0bd5616c997c9507c25616c63394fc#1ed972ed3f0bd5616c997c9507c25616c63394fc"
 dependencies = [
  "bindgen",
  "build-utils",
@@ -290,7 +290,7 @@ checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
 [[package]]
 name = "fabric-lib"
 version = "0.0.0"
-source = "git+https://github.com/perplexityai/pplx-garden#1ed972ed3f0bd5616c997c9507c25616c63394fc"
+source = "git+https://github.com/perplexityai/pplx-garden?rev=1ed972ed3f0bd5616c997c9507c25616c63394fc#1ed972ed3f0bd5616c997c9507c25616c63394fc"
 dependencies = [
  "anyhow",
  "bytes",
@@ -420,7 +420,7 @@ dependencies = [
 [[package]]
 name = "gdrapi-sys"
 version = "0.0.0"
-source = "git+https://github.com/perplexityai/pplx-garden#1ed972ed3f0bd5616c997c9507c25616c63394fc"
+source = "git+https://github.com/perplexityai/pplx-garden?rev=1ed972ed3f0bd5616c997c9507c25616c63394fc#1ed972ed3f0bd5616c997c9507c25616c63394fc"
 dependencies = [
  "bindgen",
  "build-utils",
@@ -485,7 +485,7 @@ checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 [[package]]
 name = "libfabric-sys"
 version = "0.0.0"
-source = "git+https://github.com/perplexityai/pplx-garden#1ed972ed3f0bd5616c997c9507c25616c63394fc"
+source = "git+https://github.com/perplexityai/pplx-garden?rev=1ed972ed3f0bd5616c997c9507c25616c63394fc#1ed972ed3f0bd5616c997c9507c25616c63394fc"
 dependencies = [
  "bindgen",
  "build-utils",
@@ -494,7 +494,7 @@ dependencies = [
 [[package]]
 name = "libibverbs-sys"
 version = "0.0.0"
-source = "git+https://github.com/perplexityai/pplx-garden#1ed972ed3f0bd5616c997c9507c25616c63394fc"
+source = "git+https://github.com/perplexityai/pplx-garden?rev=1ed972ed3f0bd5616c997c9507c25616c63394fc#1ed972ed3f0bd5616c997c9507c25616c63394fc"
 dependencies = [
  "bindgen",
  "build-utils",
@@ -925,7 +925,7 @@ dependencies = [
 [[package]]
 name = "thread-lib"
 version = "0.0.0"
-source = "git+https://github.com/perplexityai/pplx-garden#1ed972ed3f0bd5616c997c9507c25616c63394fc"
+source = "git+https://github.com/perplexityai/pplx-garden?rev=1ed972ed3f0bd5616c997c9507c25616c63394fc#1ed972ed3f0bd5616c997c9507c25616c63394fc"
 dependencies = [
  "libc",
  "syscalls",

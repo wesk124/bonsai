@@ -17,6 +17,7 @@ Model: Qwen2.5-1.5B-Instruct. Evaluation: LongBench (QASPER, HotpotQA), RULER.
 - [High-level design](docs/HLD.md): architecture, request lifecycle, wire
   format, adaptive precision, measurement, two-node deployment
 - [Low-level design](docs/LLD.md): Rust interfaces, crate by crate
+- [Build guide](docs/BUILD.md): fabric-lib + Bonsai build, Docker image, host requirements for the RDMA nodes
 
 ## Status
 
@@ -27,8 +28,12 @@ GPU, RDMA and binding code is still `todo!()` and is tracked in the
 
 ## Build
 
+Full requirements and the Docker image are in [docs/BUILD.md](docs/BUILD.md).
+
 ```bash
+docker build -t bonsai-dev -f docker/Dockerfile .  # on each RDMA node
+scripts/run-docker.sh
 cargo build && cargo test            # any OS: core + control plane
-cargo build --features fabric,cuda   # Linux with RDMA NICs, CUDA ≥ 12.8, libfabric, GDRCopy
+cargo build -p bonsai-dataplane --features fabric   # Linux RDMA node; see docs/BUILD.md
 cd crates/bonsai-py && maturin develop   # Python module `bonsai`
 ```

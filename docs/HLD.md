@@ -311,6 +311,7 @@ bandwidth results come from two separate nodes:
   libfabric, libibverbs, GDRCopy, and the `SYS_PTRACE`/`SYS_ADMIN`
   capabilities (the pplx-garden dev Docker image provides these).
 - `bonsai-ctl` runs on either node; it is not on the data path.
+- Host setup, the Docker image and the build steps are in [BUILD.md](BUILD.md).
 - Before any Bonsai run, `fabric-debug` (from pplx-garden) validates the link
   and records the line rate we compare against.
 
