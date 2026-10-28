@@ -1,0 +1,4 @@
+[toolchain]
+# Matches pplx-garden so fabric-lib builds with the same compiler.
+channel = "1.91.0"
+profile = "default"

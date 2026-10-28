@@ -1,0 +1,19 @@
+[package]
+name = "bonsai-transport"
+description = "Bonsai's narrow RDMA interface, implemented on Perplexity fabric-lib (feature `fabric`) or in-process loopback."
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+fabric = ["dep:fabric-lib", "dep:cuda-lib", "dep:postcard"]
+
+[dependencies]
+bonsai-core = { workspace = true }
+bytes = { workspace = true }
+parking_lot = { workspace = true }
+tokio = { workspace = true }
+fabric-lib = { workspace = true, optional = true }
+postcard = { workspace = true, optional = true }
+cuda-lib = { workspace = true, optional = true }

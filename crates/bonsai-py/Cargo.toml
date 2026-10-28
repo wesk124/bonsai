@@ -1,0 +1,23 @@
+[package]
+name = "bonsai-py"
+description = "PyO3 bindings: lets HF Transformers prefill/decode workers drive the Bonsai data plane."
+edition = "2024"
+version = "0.1.0"
+publish = false
+
+[lib]
+name = "bonsai"
+crate-type = ["cdylib"]
+
+[features]
+default = ["fabric", "cuda"]
+fabric = ["bonsai-dataplane/fabric"]
+cuda = ["bonsai-dataplane/cuda"]
+
+[dependencies]
+bonsai-core = { path = "../bonsai-core" }
+bonsai-dataplane = { path = "../bonsai-dataplane" }
+bonsai-transport = { path = "../bonsai-transport" }
+bonsai-control = { path = "../bonsai-control" }
+pyo3 = { version = "0.27", features = ["extension-module", "anyhow"] }
+tokio = { version = "1.48", features = ["rt-multi-thread"] }

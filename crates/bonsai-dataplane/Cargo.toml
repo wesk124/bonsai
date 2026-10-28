@@ -1,0 +1,20 @@
+[package]
+name = "bonsai-dataplane"
+description = "Bonsai data plane: chunked encode -> RDMA write pipeline (sender) and progressive decode (receiver)."
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+fabric = ["bonsai-transport/fabric"]
+cuda = ["bonsai-codec/cuda"]
+
+[dependencies]
+bonsai-core = { workspace = true }
+bonsai-codec = { workspace = true }
+bonsai-transport = { workspace = true }
+futures = { workspace = true }
+parking_lot = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

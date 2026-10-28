@@ -1,0 +1,12 @@
+[package]
+name = "bonsai-core"
+description = "Shared types for Bonsai: ids, KV layout, codec specs, wire format, control messages, metrics."
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+bytes = { workspace = true }
+postcard = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
