@@ -1,1 +1,6 @@
 target
+results/
+workloads/
+__pycache__/
+*.egg-info/
+.pytest_cache/

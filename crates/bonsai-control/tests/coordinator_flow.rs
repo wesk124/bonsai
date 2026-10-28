@@ -55,6 +55,7 @@ fn coordinator(fallback: bool) -> Coordinator {
             fallback_to_bf16: fallback,
             max_retries: 1,
             max_queue: 128,
+            bandwidth_ewma_alpha: 0.2,
         },
         Box::new(LeastLoaded),
         Box::new(StaticCodecPolicy { precision: CodecSpec::int8_default(&L).into(), chunk: ChunkSpec::PER_LAYER }),

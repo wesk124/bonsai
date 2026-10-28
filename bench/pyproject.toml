@@ -1,0 +1,16 @@
+[project]
+name = "bonsai-bench"
+version = "0.1.0"
+description = "Bonsai evaluation and benchmarks (quality evals, workloads, codec microbenchmarks)"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.2", "transformers>=4.45", "numpy", "scipy"]
+
+[project.optional-dependencies]
+eval = ["datasets>=2.14", "lm-eval>=0.4.3", "zstandard"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["bonsai_bench"]

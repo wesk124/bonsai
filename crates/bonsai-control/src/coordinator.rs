@@ -40,6 +40,8 @@ pub struct CoordinatorConfig {
     pub fallback_to_bf16: bool,
     pub max_retries: u32,
     pub max_queue: usize,
+    /// EWMA weight of the newest goodput sample (adaptive precision input).
+    pub bandwidth_ewma_alpha: f64,
 }
 
 pub struct Coordinator {
@@ -63,6 +65,7 @@ impl Coordinator {
         sink: Box<dyn MetricsSink>,
     ) -> Self {
         Coordinator {
+            bandwidth: BandwidthEstimator::new(cfg.bandwidth_ewma_alpha),
             cfg,
             registry: WorkerRegistry::default(),
             sessions: SessionManager::default(),
@@ -70,7 +73,6 @@ impl Coordinator {
             codec_policy,
             sink,
             denied: Default::default(),
-            bandwidth: BandwidthEstimator::new(0.2),
         }
     }
 

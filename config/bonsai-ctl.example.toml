@@ -1,0 +1,153 @@
+# bonsai-ctl configuration template.
+#
+#   cp config/bonsai-ctl.example.toml config/bonsai-ctl.toml
+#   bonsai-ctl --config config/bonsai-ctl.toml --check     # validate + print sizes
+#   bonsai-ctl --config config/bonsai-ctl.toml             # run the coordinator
+#
+# Unknown keys are rejected, so typos fail fast. Sections marked (optional)
+# can be removed entirely; defaults are shown. Guide: docs/CONTROL_PLANE.md.
+
+# ---------------------------------------------------------------------------
+[server]
+# TCP address workers and clients connect to. Use a reachable IP on the
+# benchmark network (not the RDMA fabric; control traffic is plain TCP).
+listen = "0.0.0.0:7000"
+# How often timeouts and heartbeats are checked.
+tick_ms = 50
+
+# ---------------------------------------------------------------------------
+[model]
+# Workers must register the same model name and KV layout, or they are rejected.
+name = "Qwen/Qwen2.5-1.5B-Instruct"
+preset = "qwen2.5-1.5b-instruct"        # 28 layers x 2 KV heads x 128 dim, bf16
+# Without a preset, give the layout explicitly:
+# num_layers = 28
+# num_kv_heads = 2
+# head_dim = 128
+# dtype = "bf16"                        # bf16 | f16 | f32
+
+# ---------------------------------------------------------------------------
+[admission]                             # (optional)
+# Requests waiting for placement. Beyond this, Submit is rejected.
+max_queue = 1024
+# Decode workers tried per handoff (after SlotDenied) before re-queueing.
+max_lease_attempts = 2
+
+# ---------------------------------------------------------------------------
+[timeouts]                              # (optional)
+# A worker missing heartbeats for 1x is "suspect" (no new work), for 3x "lost".
+heartbeat_ms = 2000
+# Max time in Leasing + Transferring (slot lease -> all KV written).
+handoff_ms = 10000
+# Max time in Decoding (KV received -> generation finished). Long outputs need more.
+decode_ms = 300000
+
+# ---------------------------------------------------------------------------
+[failure]                               # (optional)
+# Retry a failed quantized handoff once as BF16 (new handoff id, new slot).
+fallback_to_bf16 = true
+max_retries = 1
+
+# ---------------------------------------------------------------------------
+[placement]                             # (optional)
+policy = "least_loaded"                 # only option for now
+
+# ---------------------------------------------------------------------------
+# Codec definitions (optional). Built-in names, usable anywhere a codec or
+# precision name is expected:
+#   bf16           uncompressed baseline
+#   int8           symmetric, 1 scale per (layer, head, token) over head_dim
+#   int4           asymmetric g32; K per-channel (axis = token), V per-token
+#   int4-pertoken  asymmetric g32; K and V per-token
+#   atom-kv4       Atom (MLSys'24) KV scheme: asymmetric, group = head_dim
+#
+# bits: 16 | 8 | 4
+# axis: "head_dim" (groups of channels within a token: per-token)
+#     | "token"    (groups of tokens within a channel: per-channel; chunk
+#                   token sizes must then be multiples of group_size)
+[codecs.int4-g64]
+bits = 4
+key   = { group_size = 64, axis = "token",    symmetric = false }
+value = { group_size = 64, axis = "head_dim", symmetric = false }
+
+[codecs.int8-g32]
+bits = 8
+key   = { group_size = 32, axis = "head_dim", symmetric = true }
+value = { group_size = 32, axis = "head_dim", symmetric = true }
+
+# ---------------------------------------------------------------------------
+# Per-layer mixed precisions (optional): adaptive precision level (a).
+# `default` applies to every layer not covered by an override; later
+# overrides win. Ranges are half-open [start, end). Pick the protected
+# layers from the layer-sensitivity sweep (docs/BENCHMARKS.md, B3).
+[precisions.int8-edges]
+default = "int4"
+overrides = [
+  { layers = [0, 4],   codec = "int8" },
+  { layers = [24, 28], codec = "int8" },
+]
+
+[precisions.bf16-first]
+default = "int4"
+overrides = [{ layers = [0, 2], codec = "bf16" }]
+
+# ---------------------------------------------------------------------------
+[codec]
+# "static"   every request uses [codec.static]  (use this for the sweeps)
+# "adaptive" choose per request from [codec.adaptive] candidates
+policy = "static"
+
+[codec.static]
+precision = "int8"
+# Chunk = unit of one RDMA write. tokens = 0 / layers = 0 mean "all".
+# Per-layer chunks give pipelining and progressive decode; token chunking
+# bounds frame size for long prompts (must be a multiple of 32 for int4).
+chunk = { tokens = 0, layers = 1 }
+
+[codec.adaptive]
+# Candidates whose measured F1 loss (points vs bf16) exceeds this at the
+# request's context length are never chosen.
+max_quality_loss = 1.0
+# A cheaper candidate must beat the least-lossy eligible one by >= 10%.
+min_gain = 0.1
+# Weight of the newest sample in the achieved-bandwidth EWMA.
+bandwidth_ewma_alpha = 0.2
+
+# PLACEHOLDER numbers. Calibrate with:
+#   python -m bonsai_bench.codec_bench   (encode/decode GB/s, per-kernel cost)
+#   fabric-debug                         (link efficiency, per-write cost)
+[codec.adaptive.cost_model]
+per_write_us = 5.0
+per_chunk_kernel_us = 5.0
+link_efficiency = 0.9
+bf16 = { encode_gbps = 400.0, decode_gbps = 400.0 }
+int8 = { encode_gbps = 200.0, decode_gbps = 250.0 }
+int4 = { encode_gbps = 150.0, decode_gbps = 200.0 }
+
+# quality_loss = [[max_context_tokens, f1_loss_points], ...] from the
+# quality sweep on the dev split (PLACEHOLDER values below).
+[[codec.adaptive.candidates]]
+precision = "bf16"
+chunk = { layers = 4 }
+quality_loss = [[32768, 0.0]]
+
+[[codec.adaptive.candidates]]
+precision = "int8"
+chunk = { layers = 4 }
+quality_loss = [[4096, 0.1], [32768, 0.2]]
+
+[[codec.adaptive.candidates]]
+precision = "int8-edges"
+chunk = { layers = 4 }
+quality_loss = [[4096, 0.4], [32768, 0.8]]
+
+[[codec.adaptive.candidates]]
+precision = "int4"
+chunk = { layers = 4 }
+quality_loss = [[4096, 0.9], [16384, 1.5]]
+
+# ---------------------------------------------------------------------------
+[metrics]                               # (optional)
+# One HandoffReport per line. Parent directories are created. Omit to keep
+# reports in memory only.
+jsonl = "results/run.jsonl"

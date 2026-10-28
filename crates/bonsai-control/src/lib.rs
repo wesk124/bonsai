@@ -15,6 +15,7 @@
 //! sockets. [`server`] wraps it with tokio TCP.
 
 pub mod client;
+pub mod config;
 pub mod coordinator;
 pub mod policy;
 pub mod registry;

@@ -1,0 +1,9 @@
+# pip install -r bench/requirements.txt   (then: pip install -e bench)
+torch>=2.2
+transformers>=4.45
+numpy
+scipy
+datasets>=2.14
+lm-eval>=0.4.3
+zstandard
+pytest

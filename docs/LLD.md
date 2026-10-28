@@ -19,7 +19,7 @@ bonsai/
     │   └── kernels/           bonsai_codec.cuh (C ABI); .cu implementation lands in M2
     ├── bonsai-transport/      Transport trait; FabricTransport (feature fabric); LoopbackTransport
     ├── bonsai-dataplane/      StagingRing, ReceiveArena, KvSender, KvReceiver, Gpu trait, Throttle
-    ├── bonsai-control/        Coordinator (sans-IO), registry, sessions, policies, sink, server,
+    ├── bonsai-control/        Coordinator (sans-IO), registry, sessions, policies, sink, server, config (TOML),
     │   ├── src/bin/bonsai-ctl.rs
     │   └── tests/coordinator_flow.rs
     └── bonsai-py/             PyO3 module `bonsai` (excluded from workspace; built with maturin)
@@ -551,7 +551,10 @@ links.
   workers that receive assignments while sending reports.
 - `sink::MetricsSink`: `JsonlSink` (one `HandoffReport` per line) and
   `MemorySink` (tests).
-- Binary: `bonsai-ctl --listen … --codec … --chunk-tokens … --chunk-layers … --metrics out.jsonl`.
+- Binary: `bonsai-ctl --config <file.toml> [--check] [--listen addr]`.
+- `config::CtlConfig` (TOML, `deny_unknown_fields`) → `resolve()` → `Resolved { listen, tick, coordinator, placement, codec_policy }`.
+  Built-in codec names: `bf16`, `int8`, `int4`, `int4-pertoken`, `atom-kv4`; plus `[codecs.*]` and `[precisions.*]`.
+  Template: `config/bonsai-ctl.example.toml` (parsed by a unit test). User guide: `docs/CONTROL_PLANE.md`.
 
 ---
 
@@ -579,6 +582,8 @@ BF16 tensors through torch, so the PyTorch caching allocator owns that memory.
 |---|---|---|---|
 | Unit | Byte accounting, planner invariants, imm tag packing, mixed-precision segmentation | `bonsai-core` | ✅ 9 tests |
 | Protocol | Coordinator happy path, BF16 fallback, adaptive policy regimes | `bonsai-control/tests` | ✅ 3 tests |
+| Config | Template resolves, minimal config, typo/alignment rejection, `atom-kv4` scheme | `bonsai-control` (`config.rs`) | ✅ 4 tests |
+| Bench (Python) | Reference codecs vs Rust byte accounting, BF16 handoff == plain forward, workloads, layer sweep | `bench/tests` | ✅ 12 tests |
 | Codec | CUDA kernels vs CPU reference (bit-exact), error stats per codec | `bonsai-codec` (feature `cuda`) | M2 |
 | Pipeline | Sender + receiver over `LoopbackTransport` + fake `Gpu`: out-of-order completion, early-imm drop, abort and quarantine, timeout | `bonsai-dataplane` | M1–M2 |
 | End-to-end | 2-node BF16 handoff: decode output tokens == colocated `generate` (greedy) | cluster | M1 |
@@ -596,7 +601,7 @@ BF16 tensors through torch, so the PyTorch caching allocator owns that memory.
 - [ ] `StagingRing` (Whole mode)
 - [ ] `ReceiveArena`
 - [ ] `server::serve` and `ControlClient`
-- [ ] `bonsai-ctl` argument parsing
+- [x] `bonsai-ctl` argument parsing and TOML config (`config.rs`, `--check`)
 - [ ] `bonsai-py` `Worker`
 
 **M2**

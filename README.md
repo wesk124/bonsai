@@ -18,11 +18,15 @@ Model: Qwen2.5-1.5B-Instruct. Evaluation: LongBench (QASPER, HotpotQA), RULER.
   format, adaptive precision, measurement, two-node deployment
 - [Low-level design](docs/LLD.md): Rust interfaces, crate by crate
 - [Build guide](docs/BUILD.md): fabric-lib + Bonsai build, Docker image, host requirements for the RDMA nodes
+- [Control plane user guide](docs/CONTROL_PLANE.md): `bonsai-ctl`, config reference ([template](config/bonsai-ctl.example.toml)), precisions, adaptive policy, metrics
+- [Benchmarks](docs/BENCHMARKS.md): evaluation suite, including benchmarks migrated from Atom (MLSys'24)
 
 ## Status
 
 Design and interface skeleton. `bonsai-core` (byte accounting, wire format /
-chunk planner) and the coordinator state machine are implemented and tested.
+chunk planner), the coordinator state machine, and the `bonsai-ctl` config
+loader (`--check`) are implemented and tested. The `bench/` Python package
+(PyTorch reference codecs, perplexity / zero-shot evals, workloads) runs today.
 GPU, RDMA and binding code is still `todo!()` and is tracked in the
 [LLD checklist](docs/LLD.md#8-implementation-checklist-todo--done).
 
