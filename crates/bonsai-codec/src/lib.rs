@@ -19,19 +19,32 @@ pub mod cuda;
 
 use bonsai_core::{ChunkDesc, CodecSpec, CudaStream, DevicePtr, KvSink, KvSource, Result};
 
-/// Encode/decode one chunk. Calls are asynchronous with respect to the host:
-/// they only enqueue work on `stream`. The caller records an event after
+/// Encode/decode one chunk. Device work is ordered on `stream`. The CUDA
+/// encoder synchronizes for numerical validation before enqueuing packing.
+/// The caller records an event after
 /// `encode_chunk` and waits on it before posting the RDMA write of that frame.
 pub trait KvCodec: Send + Sync {
     fn spec(&self) -> CodecSpec;
 
     /// Read `chunk.layers x chunk.tokens` from `src` and write the frame at `dst`
     /// (`dst` points at the frame start; section offsets come from `chunk.sections`).
-    fn encode_chunk(&self, src: &KvSource, chunk: &ChunkDesc, dst: DevicePtr, stream: CudaStream) -> Result<()>;
+    fn encode_chunk(
+        &self,
+        src: &KvSource,
+        chunk: &ChunkDesc,
+        dst: DevicePtr,
+        stream: CudaStream,
+    ) -> Result<()>;
 
     /// Read the frame at `frame` and write BF16 values into the matching
     /// rectangle of `dst`.
-    fn decode_chunk(&self, frame: DevicePtr, chunk: &ChunkDesc, dst: &KvSink, stream: CudaStream) -> Result<()>;
+    fn decode_chunk(
+        &self,
+        frame: DevicePtr,
+        chunk: &ChunkDesc,
+        dst: &KvSink,
+        stream: CudaStream,
+    ) -> Result<()>;
 
     /// Device scratch the codec needs per in-flight chunk, beyond the frame
     /// itself. Reported as part of "temporary buffer usage".
@@ -53,7 +66,9 @@ pub fn make_codec(spec: CodecSpec, backend: Backend) -> Result<Box<dyn KvCodec>>
         #[cfg(not(feature = "cuda"))]
         Backend::Cuda => {
             let _ = spec;
-            Err(bonsai_core::BonsaiError::Codec("built without the `cuda` feature".into()))
+            Err(bonsai_core::BonsaiError::Codec(
+                "built without the `cuda` feature".into(),
+            ))
         }
     }
 }
@@ -76,6 +91,10 @@ impl CodecSet {
 
     /// Codec for `chunk`. Panics if the chunk is not from the plan this set was built for.
     pub fn get(&self, chunk: &ChunkDesc) -> &dyn KvCodec {
-        self.codecs.iter().find(|(s, _)| *s == chunk.codec).map(|(_, c)| c.as_ref()).expect("chunk codec not in set")
+        self.codecs
+            .iter()
+            .find(|(s, _)| *s == chunk.codec)
+            .map(|(_, c)| c.as_ref())
+            .expect("chunk codec not in set")
     }
 }

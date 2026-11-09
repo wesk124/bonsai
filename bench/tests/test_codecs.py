@@ -60,10 +60,10 @@ def test_atom_kv4_close_to_exact_atom_quantizer():
 
 def test_config_precisions_and_bytes_match_rust():
     # Values printed by `bonsai-ctl --check` (bonsai-core byte accounting).
-    expect = {"bf16": 28672, "int8": 14560, "int4": 8960, "atom-kv4": 7616, "int8-edges": 10560, "int4-g64": 8064}
+    expect = {"bf16": 147456, "int8": 74880, "int4": 46080, "atom-kv4": 39168, "int8-edges": 52480, "int4-g64": 41472}
     for name, b in expect.items():
         p = load_precision(name, CONFIG)
-        assert encoded_bytes_per_token(p, 28, 2, 128) == pytest.approx(b), name
+        assert encoded_bytes_per_token(p, 36, 8, 128) == pytest.approx(b), name
     p = load_precision("int8-edges", CONFIG)
     assert p.codec_for_layer(0).name == "int8" and p.codec_for_layer(10).name == "int4"
-    assert p.codec_for_layer(27).name == "int8"
+    assert p.codec_for_layer(35).name == "int8"

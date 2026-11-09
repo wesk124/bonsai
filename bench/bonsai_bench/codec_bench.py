@@ -1,17 +1,11 @@
-"""Codec microbenchmark (Atom's kernel-benchmark methodology, applied to KV codecs).
+"""Measure actual packed PyTorch encode and decode separately.
 
-Times encode+decode of a full Qwen2.5-1.5B KV cache at several context lengths
-and reports throughput over raw BF16 bytes, alongside a device-to-device
-memcpy of the same size (the roofline). The output is the
-`[codec.adaptive.cost_model]` table for bonsai-ctl.
-
-Until the CUDA kernels exist (milestone 2) this times the PyTorch reference,
-which is much slower than the kernels will be. Use those numbers only to
-exercise the pipeline, not to calibrate the cost model.
-
-    python -m bonsai_bench.codec_bench --seq-lens 1024,8192,32768
+Timings are synchronized wall time, including Python dispatch, validation,
+packing, metadata serialization/parsing, and allocation. Backend is explicitly
+``torch-packed`` regardless of whether a package named bonsai is importable.
+The emitted cost-model rates use raw uncompressed bytes divided by each measured
+stage time. These are measurements of the reference backend, not CUDA kernels.
 """
-
 from __future__ import annotations
 
 import argparse
@@ -20,68 +14,74 @@ import time
 
 import torch
 
-from .codecs import load_precision, roundtrip_layer
+from .codecs import load_precision
+from .packed import PackedCache, encode_cache, decode_cache
 
 
 def _timeit(fn, device: str, iters: int) -> float:
-    fn()  # warm-up
-    if device.startswith("cuda"):
-        torch.cuda.synchronize()
-        start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-        start.record()
-        for _ in range(iters):
-            fn()
-        end.record()
-        torch.cuda.synchronize()
-        return start.elapsed_time(end) / 1e3 / iters
-    t0 = time.perf_counter()
+    if iters < 1:
+        raise ValueError("iters must be positive")
+    fn()
+    cuda = torch.device(device).type == "cuda"
+    if cuda:
+        torch.cuda.synchronize(device)
+    start = time.perf_counter()
     for _ in range(iters):
         fn()
-    return (time.perf_counter() - t0) / iters
+    if cuda:
+        torch.cuda.synchronize(device)
+    return (time.perf_counter() - start) / iters
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--precisions", default="bf16,int8,int4,atom-kv4")
     ap.add_argument("--seq-lens", default="1024,8192")
     ap.add_argument("--layers", type=int, default=28)
     ap.add_argument("--kv-heads", type=int, default=2)
     ap.add_argument("--head-dim", type=int, default=128)
     ap.add_argument("--iters", type=int, default=10)
+    ap.add_argument("--config")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     a = ap.parse_args()
-    try:
-        import bonsai  # noqa: F401
-        backend = "native"
-    except ImportError:
-        backend = "torch-reference"
-
-    rates: dict[str, float] = {}
+    if min(a.layers, a.kv_heads, a.head_dim, a.iters) < 1:
+        ap.error("layers, kv-heads, head-dim and iters must be positive")
+    rates = {}
     for seq in (int(s) for s in a.seq_lens.split(",")):
         k = torch.randn(1, a.kv_heads, seq, a.head_dim, dtype=torch.bfloat16, device=a.device)
         v = torch.randn_like(k)
+        cache = tuple((k, v) for _ in range(a.layers))
         raw = 2 * k.numel() * k.element_size() * a.layers
-        dst = torch.empty_like(k)
-        t_copy = _timeit(lambda: (dst.copy_(k), dst.copy_(v)), a.device, a.iters) * a.layers
+        source = torch.empty(raw, dtype=torch.uint8, device=a.device)
+        destination = torch.empty_like(source)
+        copy_s = _timeit(lambda: destination.copy_(source), a.device, a.iters)
+        del source, destination
         for pname in a.precisions.split(","):
-            prec = load_precision(pname, head_dim=a.head_dim)
-            if prec.default.bits >= 16:   # BF16 "codec" = strided pack into the frame (+ unpack): two copies
-                fn = lambda: (dst.copy_(k), dst.copy_(v), dst.copy_(k), dst.copy_(v))  # noqa: E731
-            else:
-                fn = lambda: roundtrip_layer(k, v, prec.default)  # noqa: E731
-            t = _timeit(fn, a.device, a.iters) * a.layers
-            gbps = raw / t / 1e9
-            rates[pname] = gbps
-            print(json.dumps({"bench": "codec", "backend": backend, "precision": pname, "seq_len": seq,
-                              "raw_mib": raw / 2**20, "roundtrip_ms": t * 1e3, "roundtrip_gbps": gbps,
-                              "memcpy_gbps": raw / t_copy / 1e9}))
-
-    # Encode and decode are timed together here; split evenly (2x each) until the native API times them separately.
-    print(f"\n# [codec.adaptive.cost_model] rates from backend={backend}, last seq_len")
+            prec = load_precision(pname, a.config, a.head_dim)
+            def encode():
+                packet = encode_cache(cache, prec)
+                return packet, packet.metadata_bytes()
+            packet, header = encode()
+            def decode():
+                return decode_cache(PackedCache.from_wire(packet.buffer, header), as_legacy=True)
+            encode_s = _timeit(encode, a.device, a.iters)
+            decode_s = _timeit(decode, a.device, a.iters)
+            rates[pname] = (raw / encode_s / 1e9, raw / decode_s / 1e9)
+            print(json.dumps({"bench": "codec", "backend": "torch-packed", "format": packet.metadata["format"],
+                              "timing": "synchronized-wall", "precision": pname, "seq_len": seq,
+                              "raw_bytes": raw, "payload_bytes": packet.payload_nbytes,
+                              "metadata_bytes": len(header), "wire_bytes": packet.wire_nbytes,
+                              "compression_ratio": raw / packet.wire_nbytes,
+                              "encode_ms": encode_s * 1e3, "decode_ms": decode_s * 1e3,
+                              "encode_gbps": rates[pname][0], "decode_gbps": rates[pname][1],
+                              "roundtrip_ms": (encode_s + decode_s) * 1e3,
+                              "roundtrip_gbps": raw / (encode_s + decode_s) / 1e9,
+                              "memcpy_gbps": raw / copy_s / 1e9}), flush=True)
+    print("\n# [codec.adaptive.cost_model] measured torch-packed rates; last seq_len")
     for fam in ("bf16", "int8", "int4"):
         if fam in rates:
-            g = 2 * rates[fam]
-            print(f"{fam} = {{ encode_gbps = {g:.1f}, decode_gbps = {g:.1f} }}")
+            enc, dec = rates[fam]
+            print(f"{fam} = {{ encode_gbps = {enc:.6g}, decode_gbps = {dec:.6g} }}")
 
 
 if __name__ == "__main__":

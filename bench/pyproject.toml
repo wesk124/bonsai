@@ -2,10 +2,11 @@
 name = "bonsai-bench"
 version = "0.1.0"
 description = "Bonsai evaluation and benchmarks (quality evals, workloads, codec microbenchmarks)"
-requires-python = ">=3.10"
-dependencies = ["torch>=2.2", "transformers>=4.45", "numpy", "scipy"]
+requires-python = ">=3.11"
+dependencies = ["torch==2.8.0", "transformers==4.56.2", "numpy", "scipy", "pyyaml", "wonderwords", "nltk", "tqdm", "tenacity", "html2text", "beautifulsoup4"]
 
 [project.optional-dependencies]
+analysis = ["matplotlib", "seaborn==0.13.2"]
 eval = ["datasets>=2.14", "lm-eval>=0.4.3", "zstandard"]
 
 [build-system]

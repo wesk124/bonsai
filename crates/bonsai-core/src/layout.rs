@@ -28,6 +28,10 @@ pub struct KvLayout {
 }
 
 impl KvLayout {
+    /// Qwen/Qwen3-4B-Instruct-2507 uses explicit head_dim=128 (not hidden_size / heads).
+    pub const QWEN3_4B_INSTRUCT_2507: KvLayout =
+        KvLayout { num_layers: 36, num_kv_heads: 8, head_dim: 128, dtype: ElemType::Bf16 };
+
     /// Qwen/Qwen2.5-1.5B-Instruct: 28 layers, GQA with 2 KV heads, head_dim 128, BF16.
     pub const QWEN2_5_1_5B: KvLayout =
         KvLayout { num_layers: 28, num_kv_heads: 2, head_dim: 128, dtype: ElemType::Bf16 };

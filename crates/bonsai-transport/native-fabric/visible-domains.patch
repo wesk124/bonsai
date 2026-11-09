@@ -1,0 +1,31 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -27,7 +27,7 @@
+ };
+ pub use provider::{RdmaDomain, RdmaDomainInfo};
+ pub use provider_dispatch::DomainInfo;
+-pub use topo::{TopologyGroup, detect_topology};
++pub use topo::{TopologyGroup, detect_topology, visible_domains};
+ pub use transfer_engine::{
+     ImmCountCallback, TransferCallback, TransferEngine, UvmWatcherCallback,
+ };
+--- a/src/topo.rs
++++ b/src/topo.rs
+@@ -457,7 +457,7 @@
+     Ok(system_topo)
+ }
+ 
+-fn get_visible_domains() -> Vec<DomainInfo> {
++pub fn visible_domains() -> Vec<DomainInfo> {
+     // Try EFA first
+     let efa_domains = get_efa_domains().unwrap_or_default();
+     if !efa_domains.is_empty() {
+@@ -482,7 +482,7 @@
+     let gpu_pci_device_id = get_gpu_pci_device_id()?;
+ 
+     // Get visible NICs by EFA and Verbs
+-    let domains = get_visible_domains();
++    let domains = visible_domains();
+     if domains.is_empty() {
+         return Err(FabricLibError::Custom("No visible NICs"));
+     }

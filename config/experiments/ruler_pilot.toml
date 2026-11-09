@@ -1,0 +1,19 @@
+# Pilot tuning set uses separate generation seeds; never include in final results.
+schema_version = "bonsai.ruler.experiment.v1"
+split = "pilot"
+model = "Qwen/Qwen3-4B-Instruct-2507"
+model_revision = "cdbee75f17c01a7cc42f958dc650907174af0554"
+upstream_repository = "https://github.com/NVIDIA/RULER"
+upstream_commit = "db43f92ff634bbce1c33d1fb15858aec4bba509a"
+tasks = ["niah_single_2", "niah_multikey_1", "niah_multiquery"]
+context_tokens = [4096, 8192, 16384]
+examples_per_cell = 5
+total_examples = 45
+seed_base = 71201
+seed_rule = "seed_base + task_index * 100 + context_index"
+max_new_tokens = 128
+do_sample = false
+prompt_protocol = "chat-user-input-assistant-answer-prefix-v1"
+manifest_glob = "data/ruler/pilot/*/niah_*.jsonl"
+primary_metric = "official_ruler_target_recovery"
+secondary_metric = "all_answers_rate"

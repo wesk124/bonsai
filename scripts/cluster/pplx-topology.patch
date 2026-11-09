@@ -1,0 +1,58 @@
+--- a/fabric-lib/src/topo.rs
++++ b/fabric-lib/src/topo.rs
+@@ -326,7 +326,8 @@
+         let pci_device_id = read_pci_device_id(&addr)?;
+ 
+         let numa_node_path = parent_bus.get_sys_path() + "/numa_node";
+-        let numa_node = std::fs::read_to_string(numa_node_path)
++        let numa_node = std::fs::read_to_string(&numa_node_path)
++            .or_else(|_| std::fs::read_to_string(addr.get_sys_path() + "/numa_node"))
+             .map_err(|_| FabricLibError::Custom("Failed to read NUMA node"))?
+             .trim()
+             .parse::<usize>();
+@@ -457,7 +458,7 @@
+     Ok(system_topo)
+ }
+ 
+-fn get_visible_domains() -> Vec<DomainInfo> {
++pub fn get_visible_domains() -> Vec<DomainInfo> {
+     // Try EFA first
+     let efa_domains = get_efa_domains().unwrap_or_default();
+     if !efa_domains.is_empty() {
+--- a/fabric-lib/src/lib.rs
++++ b/fabric-lib/src/lib.rs
+@@ -35,3 +35,6 @@
+ pub use worker::{InitializingWorker, Worker, WorkerHandle};
+ 
+ pub use interface::MockTestTransferEngine;
++
++// Bonsai diagnostic compatibility export; see scripts/cluster/pplx-topology.patch.
++pub use topo::get_visible_domains;
+--- a/fabric-lib/fabric-debug/src/main.rs
++++ b/fabric-lib/fabric-debug/src/main.rs
+@@ -199,7 +199,24 @@
+ const CUDA_BUF_SIZE: usize = 256 << 20;
+ 
+ fn build_engine(args: &[String]) -> anyhow::Result<(Vec<u8>, FabricEngine)> {
+-    let topo_groups = detect_topology()?;
++    let topo_groups = if std::env::var_os("BONSAI_DEBUG_DIRECT_VERBS").is_some() {
++        // Diagnostic path for hosts whose PCI switch layout upstream cannot map.
++        let mut domains = fabric_lib::get_visible_domains();
++        domains.retain(|d| d.name() == "ibp0");
++        anyhow::ensure!(domains.len() == 1, "diagnostic requires active ibp0");
++        let status = std::fs::read_to_string("/proc/thread-self/status")?;
++        let list = status.lines().find_map(|l| l.strip_prefix("Cpus_allowed_list:")).unwrap().trim();
++        let mut cpus = Vec::new();
++        for part in list.split(',') {
++            let mut range = part.split('-');
++            let a: u16 = range.next().unwrap().parse()?;
++            let b: u16 = range.next().unwrap_or_else(|| part).parse()?;
++            cpus.extend(a..=b);
++        }
++        anyhow::ensure!(cpus.len() >= 2, "diagnostic requires two allowed CPUs");
++        println!("Bonsai diagnostic direct verbs: ibp0; scheduler CPUs {:?}", cpus);
++        vec![fabric_lib::TopologyGroup { cuda_device: 0, numa: 0, domains, cpus }]
++    } else { detect_topology()?.to_vec() };
+     let selected_gpus: Vec<_>;
+     let nets_per_gpu;
+     let all_gpus: Vec<_> = topo_groups.iter().map(|g| g.cuda_device).collect();

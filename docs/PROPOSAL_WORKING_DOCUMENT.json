@@ -1,0 +1,561 @@
+{
+  "google_doc_url": "https://docs.google.com/document/d/1WXJT-mR_-mC0kwp03sqIIMdt05ln850RAknmK5tytx8/edit?usp=drivesdk",
+  "title": "KV Cache Transfer — Proposal Tasks, Completed Work, and Open Questions",
+  "source_proposal": "/mnt/home/jiechen7/projects/HW/annotated-kv_quantization_retrieval_proposal.pdf",
+  "paragraphs": [
+    {
+      "style": "TITLE",
+      "text": "KV cache transfer: what we proposed and what we accomplished"
+    },
+    {
+      "style": "SUBTITLE",
+      "text": "Working document for Jie Chen and Sheng Wei • November 8, 2026"
+    },
+    {
+      "style": "HEADING_1",
+      "text": "The project in plain language"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "The project asks whether we can move a language model’s memory of a long document between two GPU workers more efficiently. The first worker reads the complete prompt and builds an attention key–value cache, called the KV cache. The second worker receives that cache and continues generating the answer. We compress the cache during the handoff; the model’s weights stay unchanged. To be useful, compression must preserve retrieval quality and save more transfer time than it adds in encoding and reconstruction."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "We have completed the implementation and the original 900-prompt experimental matrix. That study showed approximately 49% fewer application bytes with INT8 and 69% fewer with packed INT4, with no observed retrieval loss. However, the first implementation made compressed handoff slower than BF16 because preparing and reconstructing the cache cost too much time. We then built a faster GPU codec and tested it separately on nine pilot prompts. In that pilot, INT4 handoff at 16K took 43.62 ms, compared with 79.76 ms for the optimized BF16 baseline. The full 900-prompt evaluation has not been repeated with the optimized codec."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Two questions remain open. First, the original 100 examples per task/context cell do not statistically establish the proposed two-percentage-point quality-preservation margin, even though every requested target was recovered. Second, the new speed measurements come from a small pilot and need a larger evaluation before supporting a broad performance claim. The report draft and figures exist; the writing is being reorganized here, and the presentation has not been created."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "How to read and edit this document"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "The numbered tasks below follow the method, retrieval evaluation, measurements, and deliverables in the original two-page proposal. Each task states what was proposed, describes the concrete work used to address it, and identifies its present status. An implemented measurement can be complete even when its scientific result is inconclusive. The optional extensions are listed separately so that they do not appear to be missing requirements of the main experiment."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Keep these two experiments separate while rewriting. The original reference study used 900 unique final prompts and seven conditions, producing 6,300 predictions and 2,700 native cache transfers. The optimization follow-up used nine distinct pilot prompts, both implementations, and three process blocks, producing 378 prediction observations. Repeating a pilot prompt does not create another independent quality example."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "A. Build the cache-transfer system"
+    },
+    {
+      "style": "HEADING_2",
+      "text": "1. Use the same model on two workers"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal’s Method section specifies identical Qwen3-4B-Instruct-2507 checkpoints on two workers through Hugging Face Transformers, with model weights unchanged."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We loaded Qwen/Qwen3-4B-Instruct-2507 and its tokenizer from the same pinned revision on the sender and receiver. Model weights remain BF16, and inference uses batch size one and greedy decoding. Pinning the model, tokenizer, and software makes comparisons about cache representation rather than changes in the underlying model. Connection setup checks the model identity and revision so that incompatible workers fail instead of silently producing an invalid comparison. The working model has 36 layers, eight KV heads, and a 128-element head dimension, which determines the actual cache size."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed for the benchmark workers. This is a research implementation with measured handoffs, rather than a production multi-request serving system."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "2. Validate real GPU RDMA and measure the link"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal requires two GPU nodes on a supported GPUDirect RDMA path and network validation before integrating inference."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We built and exercised the native FabricEndpoint transport on two H200 GPU workers. Cache payloads use GPU RDMA; TCP carries control messages, descriptors, and acknowledgements. GPU/NIC selection follows hardware proximity and the scheduler’s allowed CPUs. Integrity tests transferred position-varying payloads, including a 2,395,865,088-byte cache-sized buffer. The selected NICs advertise 400 Gbit/s; separate single-transfer diagnostics measured 314.30 and 367.35 Gbit/s at approximately 604 MB and 2.396 GB. Large-buffer testing also exposed allocator and message-size problems, which we addressed by disabling expandable allocations and bounding native writes at 256 MiB."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed. The diagnostic goodputs establish a working high-bandwidth path; they are not estimates of repeated end-to-end model-handoff throughput."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "3. Establish correct uncompressed BF16 handoff"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The sender should process the complete document and question, transfer the BF16 cache, and let the receiver continue with correct cache contents, positions, and attention masks."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We implemented full-prompt prefill and a continuation helper that carries the prompt length, attention mask, absolute cache positions, and output budget into decoding. We checked BF16 continuation against ordinary local inference. The sender selects the first generated token from the final prompt logits and communicates that choice; subsequent tokens use the reconstructed receiver cache. Every comparison starts from a fresh cache so that one continuation cannot modify another condition’s starting state. Real-model checks verified transferred payload bytes, metadata, and reconstructed-cache hashes, and the original campaign passed 3,600 exact local/remote token comparisons across the four remote conditions."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed. The first-token boundary is a limitation to state clearly: quantization can affect subsequent tokens, but the first token is chosen from the sender’s unquantized prompt logits."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "4. Implement GPU INT8 cache quantization"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal calls for GPU-based INT8 compression and reconstruction so that communication savings can be evaluated against their codec cost."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We implemented symmetric INT8 quantization independently for each head and token, using a scale for the channel group. Encoding converts the BF16 cache values into actual eight-bit codes and stores the FP16 scales needed for reconstruction. The receiver decodes these codes into a new BF16 cache before continuing. The first full experiment used transparent PyTorch operations on the GPU, making the numerical rules and buffer contents easy to inspect. A later Triton implementation preserves the same packet bytes while reducing intermediate tensors, launches, and copies. Model weights and newly generated KV remain BF16."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed and evaluated in the original full matrix. The optimized implementation has separate real-cache integrity checks and a smaller performance pilot."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "5. Implement physically packed INT4 and reconstruction metadata"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal requires INT4 values packed into bytes, with scales, shapes, identifiers, and reconstruction metadata carried in the transfer messages."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We implemented asymmetric group-32 INT4 quantization, grouping keys along tokens and values along channels. Each group stores FP16 scales and offsets; two four-bit codes are physically packed into each byte. Padding is applied to incomplete groups and included in measured sizes. The packet describes the ordered layer/K/V sections with their shapes, offsets, lengths, precision, and grouping information. A whole-handoff tag and ordered section descriptors identify the transfer; the benchmark does not implement a separate application identifier for every 256 MiB native subwrite. The receiver checks packet bounds and reconstructs the original tensor layout."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed, with explicit framing details. This is the measured packet format, rather than a claim that a separate chunk-streaming protocol was evaluated."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "6. Reconstruct BF16 and keep the initial pipeline sequential"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The receiver should rebuild a BF16 cache, newly generated entries should stay BF16, and compression, transfer, and reconstruction should initially run sequentially."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We kept those three handoff stages sequential so their costs are measurable. The receiver allocates storage, waits for transfer completion, reconstructs the cache, synchronizes the GPU, and sends a ready acknowledgement. Reconstructed tensors have their own storage and remain valid after the received frame is released. Generation then uses ordinary BF16 model forwards, so new KV is not repeatedly quantized. The optimized decoder also avoids an extra full-cache concatenation in the pinned Transformers cache constructor by placing fresh tensors directly into fresh cache layers. The common continuation helper still makes a private cache clone after readiness."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed for sequential handoff. Registration remains per handoff; pipelining and persistent registration pools are outside the reported implementation comparison."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "B. Build and execute the retrieval evaluation"
+    },
+    {
+      "style": "HEADING_2",
+      "text": "7. Cover single-fact, distractor, and multiple-query retrieval"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal selects three existing RULER configurations to distinguish losing one fact, confusing it with distractors, and recovering only part of an answer set."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We pinned the official RULER generator and used its essay haystack. The three configurations are niah_single_2 for retrieving one numeric value from a word key; niah_multikey_1 for selecting the requested value among competing key/value facts; and niah_multiquery for returning all four requested values. We retained the known target answers and each generated prompt, rather than relying on a judge model to decide correctness. This gives separate tests of basic retrieval, distractor selection, and multi-answer completion. It is the proposed three-task subset, not a run of every RULER task."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed for all three proposed retrieval configurations."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "8. Evaluate approximately 4K, 8K, and 16K contexts"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The required context budgets are approximately 4,096, 8,192, and 16,384 tokens."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We generated and audited prompts for all three budgets while reserving up to 128 output tokens. We counted the actual rendered tokenizer input and kept prompts intact. The original final inputs ranged from 3,324–3,960 tokens at the 4K budget, 7,464–8,056 at 8K, and 15,651–16,248 at 16K. These are budget categories, not a claim that every input has exactly the nominal token count. Using the same rendered prompt across conditions makes the comparisons fair even when lengths differ within a category."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed over the required range. Contexts beyond 16K have not been evaluated in the reported experiments."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "9. Generate 100 examples per task/context cell and keep a separate pilot"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal specifies nine task/context cells, 100 examples per cell, 900 unique prompts, and 2,700 transferred continuations across three cache formats. Pilot examples must remain separate."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We produced 900 unique final prompts with 100 in each cell and a separate 45-prompt pilot set. The nine-prompt smoke/performance subset contains one pilot example from each cell and does not overlap the final set. Running seven conditions on each final prompt produced 6,300 predictions: 2,700 local predictions and 3,600 remote predictions. Of the remote predictions, 2,700 transferred BF16/INT8/INT4 caches and 900 used text transfer with receiver prefill. Dataset audits and hashes check counts, unique identities, rendered input bytes, and target retention. Pilot performance repetition is reported separately from final quality."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed at the exact proposed final sample count. The optimized codec has not yet been run on the 900-prompt final set."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "10. Keep prompts and decoding settings identical across methods"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal requires identical prompts, decoding settings, and output budgets so that precision is the intended comparison."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We froze prompt text, token IDs, target answers, tokenizer revision, and generation budgets in the manifests. Each condition receives the same example and the same greedy decoding settings. The sender prefills once for a prompt, and conditions use fresh cache state; their order is shuffled deterministically to reduce a fixed ordering effect. The text-refill receiver tokenizes the original text and verifies that its token IDs match the frozen input. Output provenance records input hashes and the exact source snapshot. We did not choose quantization settings in response to final retrieval scores."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed. For performance comparisons, warmup and measured observations are also kept separate."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "11. Record fact positions and retain raw predictions"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal asks whether added failures concentrate near the beginning, middle, or end of a context, and requires raw predictions for inspecting errors."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We recorded requested-target positions and analyzed quantized-versus-BF16 recovery by location. The original 900 prompts contain 1,800 requested targets: 610 near the beginning, 612 in the middle, and 578 near the end. These requested targets are different from the 2,700 total facts inserted into the generated contexts, because distractor tasks do not request every inserted fact. No added target failures appeared in any position category. Raw generated text, generated token IDs, target-level recovery flags, and prompt identities are retained so that disagreements can be examined directly instead of only through aggregate scores."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed. With no observed added failures, we cannot identify a positional failure mechanism; multiple targets in one prompt are not independent quality examples."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "C. Measure the comparisons promised in the proposal"
+    },
+    {
+      "style": "HEADING_2",
+      "text": "12. Implement every baseline and isolate transport effects"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal calls for local BF16, BF16 transfer, local quantization/reconstruction, full INT8/INT4 transfer, and text transfer followed by receiver prefill."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We implemented seven conditions: local BF16; local INT8 reconstruction; local INT4 reconstruction; BF16 cache transfer; INT8 cache transfer; INT4 cache transfer; and text transfer with receiver prefill. The local quantized conditions expose numerical effects without network transfer. Comparing each transferred precision with its local counterpart checks whether transport changes continuation. Comparing transferred text with local BF16 checks recomputation. These four remote/local comparisons per prompt account for the 3,600 exact generated-token comparisons in the original study. They answer a different question from whether quantized output is as accurate as BF16."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed. All required baselines ran across the complete original matrix."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "13. Measure target recovery, all-answer recovery, and differences from BF16"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal requests the official RULER target-recovery rule, whether all requested answers are correct, and score differences from BF16 at the same context length."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We implemented RULER’s case-insensitive target-substring scoring rule and kept both per-target results and an all-targets-recovered flag. A multiquery answer that recovers only some targets receives fractional target recovery and fails the all-answer check. We average targets within each prompt before comparing methods, preventing a four-target prompt from being treated as four independent examples. In the original study, all 6,300 predictions recovered every requested target, and all task/context/condition cells had 100% target recovery and all-answer recovery. Every observed INT8-minus-BF16 and INT4-minus-BF16 score difference was zero."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Measurement completed with no observed quality loss. The ceiling result limits what we can learn about harder retrieval cases."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "14. Evaluate the two-percentage-point preservation target with uncertainty"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal’s target is no more than a two-percentage-point score reduction, accompanied by paired confidence intervals; uncertain comparisons must not be called proof of preservation."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We compared precision formats on the same prompts and used whole-prompt paired bootstrap resampling, keeping a prompt’s correlated targets together. Because every observed difference is zero, the bootstrap alone produces an uninformative zero-width interval. We therefore also computed a conservative one-sided bound that allows for degraded prompts not observed in the sample. With 100 prompts per task/context comparison, the conservative 95% lower bound is about −2.95 percentage points without multiplicity adjustment and −5.72 points after adjustment across the 18 comparisons within the local or transfer family (two quantized formats × three tasks × three budgets). Neither excludes a loss larger than two points."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: The analysis is completed; the proposed preservation guarantee remains statistically inconclusive. A larger independently planned evaluation would be needed to strengthen that claim."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "15. Measure transmitted bytes including metadata and padding"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal requires actual transmitted payload costs, including reconstruction parameters, padding, and metadata."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We measured the GPU payload and counted application control/metadata frames through the receiver-ready acknowledgement. Group padding, packed codes, FP16 scales, and INT4 offsets are included in those costs. Network headers and unobserved provider connection traffic are outside the application-byte metric. In the original study, mean per-prompt reductions relative to paired BF16 transfer were 49.22% for INT8 and 68.71% for INT4. At 16K, mean application handoff sizes were about 2,241.95 MiB for BF16, 1,138.51 MiB for INT8, and 700.93 MiB for INT4. INT4’s full representation therefore costs more than an idealized fourfold reduction."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed. Byte savings are demonstrated; they must be assessed together with the encoding and reconstruction cost."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "16. Measure encoding and reconstruction overhead"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal asks how much work compression adds before sending and reconstruction adds before decoding."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We measured encode and decode stages with synchronized wall-clock timers. These include Python dispatch, GPU allocation, numerical validation, tensor operations, and construction of the usable cache object. The first PyTorch codec repeatedly created intermediate tensors and packed buffers, which made its quantized stages expensive. The follow-up Triton codec writes directly into one final frame and reconstructs fresh tensors without a redundant full-cache copy. In the separate real-cache microbenchmark, 16K combined encode/decode summaries fell from 71.58 to 6.99 ms for INT8 and from 104.52 to 17.30 ms for INT4. These are codec-only summaries, not complete handoff timings."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed for the original implementation and the optimized follow-up. Stage measurements explain a major bottleneck but do not isolate every optimization’s causal contribution."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "17. Measure complete handoff p50/p95 and decide whether compression is faster"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal defines a speedup by lower complete handoff latency, from sender cache availability until the receiver is ready to continue."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We start a sender-side timer after prefill and stop it when the sender receives the receiver-ready acknowledgement. The interval includes encoding, buffer allocation and registration, transfer, reconstruction, synchronization, control messages, and the return acknowledgement. Readiness means a fresh reconstructed cache is available; the common private continuation clone and answer generation happen afterwards. In the original 900-prompt study, 16K median handoffs were 81.89 ms for BF16, 121.88 ms for INT8, and 144.51 ms for INT4; text refill took 547.95 ms. Thus the first implementation saved bytes but increased handoff latency. We also retained p95 and paired comparisons instead of judging speed from payload size alone."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed. The original result favors BF16 over quantized transfer for that implementation. The faster follow-up result is described separately below."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "18. Measure temporary GPU memory carefully"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal asks for temporary GPU memory usage during handoff in addition to quality, bytes, and latency."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We recorded each worker’s allocation baseline and peak PyTorch allocation during the handoff, then reported the increment above that baseline. This includes resident packet storage and reconstructed caches, not only scratch space. Native memory registration borrows the Torch buffers rather than adding a separately counted copy; driver/provider allocations are not inferred from these measurements. In the new 16K pilot, INT4 sender/receiver additional peaks changed from approximately 1,429/5,322 MiB in the reference to 714/3,019 MiB in the fused implementation. Those paired measurements show reduced handoff allocation, but they are not a claim that total model-serving GPU memory was halved."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed within the stated allocator-based measurement scope."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "D. Produce the analysis, report, and working code"
+    },
+    {
+      "style": "HEADING_2",
+      "text": "19. Plot quality, communication, latency, and supporting results"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal requests retrieval quality versus bytes and context length, and complete handoff latency versus context length."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We produced plots from validated result files for retrieval quality against bytes and context, handoff latency against context, encoding/reconstruction costs, paired score differences, and fact-position effects. The updated paper package also includes six 300-dpi PNG figures covering the original quality/byte results, original latency, optimized paired handoffs, codec stage cost, paired latency ratios, and handoff memory. Figure generation checks finite values and input hashes and distinguishes the 900-prompt final study from the repeated nine-prompt pilot. Empirical percentiles and block ranges are labeled as descriptive rather than confidence intervals."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed. The figures and underlying measurements can support a clearer rewrite of the narrative."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "20. Deliver reproducible code, scripts, and auditable experiments"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The expected outcome is a working fabric-lib compression layer and reproducible benchmark scripts with enough evidence to characterize the tradeoff."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We implemented packing/reconstruction, model continuation, native transport bindings, two-worker runners, dataset generation/auditing, statistical analysis, figure scripts, and cluster launch scripts. Each measured campaign freezes the actual source, installed native binary, dependency versions, and exact input bytes; hashes are checked before jobs and in analysis. Failed or incomplete outputs cannot pass acceptance checks. The final live Python suite passed 132 tests, and the GPU codec suite passed 61 tests. The measured performance snapshot passed 43 codec tests before measurement; later alignment hardening is recorded separately. Rust CPU/CUDA codecs and coordinator/data-plane components also have separate tests, while the reported model path uses PyTorch or Triton codecs with native FabricEndpoint transport."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Completed as a reproducible research implementation. These local changes have not been pushed to GitHub; the current authenticated account lacks write access to the configured repository."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "21. Finalize the report, code package, and presentation"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The milestones call for analysis and a report draft, followed by final code, report, and presentation."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We created the original study report, an updated manuscript covering the optimized pilot, an eight-page LaTeX/PDF version with six figures, and an editable source bundle. The experiments and code artifacts are available for a coauthor to inspect and reproduce. However, the current writing mixes implementation details and experiment scopes in a way that needs revision; this working document is the basis for that rewrite. A presentation deck or completed talk has not been created. The milestone dates describe the proposal’s intended schedule; the existing records demonstrate current completion, not that every earlier deadline was met."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Report drafts, figures, and source package delivered; collaborative rewriting, final editorial review, and presentation remain outstanding."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "E. The optimization we added after the main study"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Why we added it: the first complete experiment exposed an implementation bottleneck. Compression reduced transferred data, but the PyTorch codec spent enough time allocating, converting, packing, synchronizing, and constructing caches to erase the network savings. To address the proposal’s main question about when compression can accelerate handoff, we improved that work while preserving the same numerical representation and native transport."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What changed: the optional Triton backend writes codes and parameters directly into a single final GPU frame, checks one numerical-error flag per quantized cache, and reconstructs fresh cache tensors without an extra full-cache concatenation. It also improves the BF16 path, so quantized methods compete against a faster BF16 baseline. Quantization rules and model weights stay fixed. Registration remains per handoff, and the pipeline remains sequential. The native Rust CUDA codec is separately tested; it is not the codec credited with these measured speedups."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "How we checked it: nine actual-model pilot caches were tested at all three precisions, giving 27 packet-integrity cells and 54 backend timing rows. Canonical metadata, every payload byte, and cross-decoded cache bits matched the reference. No measured codec call included JIT compilation or cache loading. We then ran both implementations across all seven conditions in three fresh process blocks: 378 predictions, 189 exact cross-implementation token comparisons, and 216 local/remote comparisons all passed. These use nine unique pilot prompts, not 378 independent quality examples."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What the new handoff result says: within the matched 16K pilot, reference INT8/INT4 medians were 124.11/144.28 ms, while fused INT8/INT4 were 49.03/43.62 ms. The optimized BF16 median was 79.76 ms. The median paired INT4/BF16 ratio was 0.5479, or about 45% lower measured handoff latency. Median latency improved at all three tested budgets, although INT8 did not consistently improve the tail. One block ran alone and two overlapped on disjoint node pairs; block variation is retained. This is encouraging pilot evidence, not a new 900-prompt quality result or a universal serving-performance guarantee."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "F. Optional extensions in the proposal"
+    },
+    {
+      "style": "HEADING_2",
+      "text": "22. Pipelining"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal lists overlapping compression, transfer, and reconstruction as an optional extension after the main experiments."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: The reported pipeline executes the stages sequentially, which makes stage and total costs interpretable. We have not evaluated overlapping chunks or concurrent handoffs. The existing frame ownership and completion checks are prerequisites for such work, but safe overlap would require additional lifetime management, scheduling, and an experiment that includes the costs of keeping multiple stages in flight."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Optional extension; not evaluated and not needed to satisfy the original core matrix."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "23. Adaptive precision"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal lists choosing precision adaptively as an optional extension."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: The measured conditions select a fixed BF16, INT8, or INT4 representation rather than dynamically choosing precision from the prompt, layer, or current network state. Some repository policy infrastructure is separate from these experiments, but we have not reported a validated adaptive-policy study. Such a study would need a policy fixed before evaluation and measured quality, bytes, and full handoff cost for the choices it makes."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Optional extension; no adaptive-precision result is claimed."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "24. Larger contexts"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal lists contexts beyond the required 4K/8K/16K range as an optional extension."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: The completed experiments stop at the 16K budget. We validated multi-gigabyte cache transfer and actual 16K model caches, but that does not establish retrieval quality or latency for 32K, 64K, or longer inputs. Extending the study would require new audited prompts, appropriate output reserves, and repeated end-to-end measurements, rather than extrapolating the existing curves."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Optional extension; contexts above 16K have not been evaluated."
+    },
+    {
+      "style": "HEADING_2",
+      "text": "25. Secondary HotpotQA evaluation"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Proposed: The proposal lists HotpotQA as an optional secondary evaluation."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "What we did and how: We have not run HotpotQA. Current quality evidence comes from the three synthetic RULER retrieval configurations, where every observed final answer was recovered. HotpotQA would add a different workload involving evidence selection and multi-hop question answering, with its own data preparation, prompting, scoring, and baseline checks. Its results would be a separate evaluation, not interchangeable with the current target-substring retrieval scores."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Status: Optional extension; not performed."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "G. Where we are relative to the proposed milestones"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "October 20–November 2: validate RDMA, establish BF16 transfer, and integrate RULER. Those technical deliverables are implemented and verified in the retained experiments. The verification records used here include November 7 runs, so we do not assert completion by the originally planned November 2 date."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "November 3–16, with preliminary INT8 by November 9: implement INT8 and packed INT4. Both formats have working GPU implementations and completed measurements, followed by the optimized-backend pilot."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "November 17–30: retrieval and communication experiments. The original required 900-prompt matrix is complete; the optimized implementation has a separate smaller pilot."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "December 1–7: analysis, figures, and report draft. Analysis and figures exist, and report drafts were rendered. The current task is to make the explanation understandable and suitable for coauthor revision."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "December 8–17: finalize code, report, and presentation. The code and experiment artifacts are validated, but final writing and the presentation are still open. Repository publication also requires writable GitHub access if we decide to publish there."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "H. What the rewrite should say, and what still needs work"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "The main finding to build around: cache compression can save substantial communication without an observed retrieval loss on the tested tasks, but its latency benefit depends strongly on implementation cost. Our first full experiment demonstrates the overhead problem; the later byte-compatible optimization demonstrates a promising way to overcome it in a controlled pilot. That sequence explains why we built the system, what we learned, and why the engineering change matters."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Keep three claims separate during editing: demonstrated byte savings; no observed retrieval loss with an inconclusive two-point statistical guarantee; and lower optimized handoff latency demonstrated on nine unique pilot prompts. Repeating those prompts cannot resolve the quality uncertainty. A larger optimized evaluation and a larger independently planned quality study would strengthen different claims."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Coauthor decisions: agree on the exact research question and the first paragraph of the new paper; decide whether the current evidence supports a scoped implementation study or whether to collect additional results; keep implementation details that explain the measured bottleneck; and prepare a final presentation after the narrative is settled. This document is intended for edits and comments on those choices."
+    },
+    {
+      "style": "HEADING_1",
+      "text": "Evidence guide"
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "The original proposal is the local file annotated-kv_quantization_retrieval_proposal.pdf. Its sections 2, 4, 5, 6, 7, and 8 supply the tasks mapped above. The original source PDF remains local; this Google Doc contains the requested summary."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Original full-study record: runs/final-20261107 and results/analysis-final. The most useful readable files are docs/PAPER_DRAFT.md, results/analysis-final/campaign/campaign.md, and results/analysis-final/handoff_equivalence.json."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Optimized follow-up record: runs/fused-20261108/analysis/summary.md and review-notes.md, codec/aggregate.json, and acceptance.json. These contain the matched timing tables, repeated-block caveats, packet integrity, and comparison counts."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Implementation: bench/bonsai_bench/packed.py and fused.py implement the measured codecs; continuation.py implements prefill/resume behavior; runner.py and worker.py implement the measured workflow; transport.py connects the worker to native FabricEndpoint."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Existing draft and figures for reuse: docs/PAPER_FUSED_DRAFT.md, docs/FUSED_CODEC.md, and paper/manuscript.pdf with its LaTeX sources and six figure PNGs. These are working materials for rewriting, not a substitute for the task-by-task explanation above. Paths in this guide are relative to /mnt/home/jiechen7/projects/HW/bonsai, except the proposal one directory above it. They refer to local workspace artifacts, not uploaded Drive files."
+    },
+    {
+      "style": "NORMAL_TEXT",
+      "text": "Base GitHub repository: wesk124/bonsai. The new implementation and experiment artifacts described here are in the local workspace and have not been pushed to that remote.",
+      "linkLabel": "wesk124/bonsai",
+      "linkUrl": "https://github.com/wesk124/bonsai"
+    }
+  ],
+  "verification": {
+    "status": "PASS",
+    "native_google_doc_readback_matches": true,
+    "task_headings": 25,
+    "paragraphs": 136,
+    "revision_id": "AHj4eMShQI6cy3phATzoZiXQCifHgnYbVn7Up9zzS-whUCjSGXinwAqxy7TUUU4hRI3XWyd86XA_CVbHi-bJWRUan5PHeJt0ck7KPWjlmGqo",
+    "source_pdf_uploaded": false
+  }
+}

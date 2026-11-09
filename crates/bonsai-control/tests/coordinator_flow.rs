@@ -63,7 +63,7 @@ fn coordinator(fallback: bool) -> Coordinator {
     )
 }
 
-fn find<'a>(out: &'a [Outbound], to: ConnId, pred: impl Fn(&FromCoordinator) -> bool) -> &'a FromCoordinator {
+fn find(out: &[Outbound], to: ConnId, pred: impl Fn(&FromCoordinator) -> bool) -> &FromCoordinator {
     &out.iter().find(|o| o.to == to && pred(&o.msg)).unwrap_or_else(|| panic!("no matching message to {to:?}: {out:#?}")).msg
 }
 
@@ -165,4 +165,33 @@ fn adaptive_precision_tracks_context_and_bandwidth() {
     let (long_slow, _) = policy.choose(&request(2, 32 * 1024), &L, &slow);
     assert!(short_fast.is_uniform(CodecSpec::Bf16), "short prompt on a fast link should stay BF16: {short_fast:?}");
     assert_eq!(long_slow.default, int4, "long prompt on a slow link should go to mixed INT4");
+}
+
+#[test]
+fn worker_identity_and_connection_ownership_are_enforced() {
+    let now = Instant::now();
+    let mut c = coordinator(false);
+    let mut wrong = worker(WorkerRole::Prefill);
+    wrong.model = "different model with same layout".into();
+    assert!(matches!(c.on_message(P, ToCoordinator::Register(wrong), now)[0].msg, FromCoordinator::Shutdown));
+    assert_eq!(c.registry().iter().count(), 0);
+    let (p, _) = setup(&mut c, now);
+    let out = c.on_message(P, ToCoordinator::Register(worker(WorkerRole::Prefill)), now);
+    assert!(matches!(out[0].msg, FromCoordinator::Shutdown));
+    assert_eq!(c.registry().iter().count(), 2);
+    let out = c.on_message(C, ToCoordinator::Deregister { worker: p }, now);
+    assert!(matches!(out[0].msg, FromCoordinator::Shutdown));
+    assert!(c.registry().get(p).is_some(), "another connection cannot deregister a worker");
+    c.on_disconnect(P, now);
+    assert!(c.registry().get(p).is_none());
+}
+
+#[test]
+fn abandoned_queued_requests_are_removed_without_fallback() {
+    let now = Instant::now();
+    let mut c = coordinator(true);
+    c.on_message(C, ToCoordinator::Submit(request(11, 64)), now);
+    assert_eq!(c.sessions().queued().count(), 1);
+    c.on_disconnect(C, now);
+    assert_eq!(c.sessions().iter().count(), 0, "disconnect must not retry abandoned work as BF16");
 }

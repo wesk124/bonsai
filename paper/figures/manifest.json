@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "reproduce": "python paper/make_figures.py",
+  "dpi": 300,
+  "format": "PNG only",
+  "data_manifest_sha256": "f2fb64447bf34f32631d5dd67d9f59146095f6898987778f543b2803ef59be0f",
+  "script_sha256": "a9e3a04641acbd23f5f8ca986cd5d03095bda234b4e624743a02088c8329bf74",
+  "input_sha256": {
+    "final-campaign.json": "166c71ac3cb7d0e973ff5c5c8080bb90d60921211328370a434ca39ea7b88ebf",
+    "final-analysis.json": "1ea1deb1122ce072b6564d29ccd9abe68e6734d1b4a2344cec004ec8492aa1ca",
+    "pilot-summary.json": "c77ebdf40f53ee0e27d02bfdff2b6d2ee4e4b296b1855d48f3075fd333468b64",
+    "codec-aggregate.json": "67199d7011215741ec4d8c7f3a6a6fcd808ead1ddaa40050c862a4d40fea6d06",
+    "accepted-final-manifest.json": "5eb39b413fa35200acd8327368b7e5693b79e456aaf5a4b8e932f08e949aacaf",
+    "accepted-pilot-manifest.json": "d94240382deaf3cd3da9da334911780fbd7c439a9ba6fad6ab23325482ca2250",
+    "pilot-handoff-pairs.json": "5f10e7a841a5e8e4acd1d8ad0a55a70609ecd30ac1c3d04b1014849f9c4b0a4a"
+  },
+  "figures": {
+    "final-quality-bytes.png": {
+      "sha256": "b4d92989b8635afde85273ca372614073cb045c1df6d9762d2852d5d382368dd",
+      "caption": "Original 900-prompt final evaluation with the PyTorch reference backend. Left: observed target recovery for native BF16, INT8 and INT4 transfer, with 300 unique prompts at each context budget (100 per task). All observed scores are at the ceiling; this does not establish the two-percentage-point preservation margin. Right: mean application handoff bytes, including payload and counted metadata/control frames but excluding network headers. Local encoded sizes are not plotted as transmitted bytes."
+    },
+    "final-handoff-latency.png": {
+      "sha256": "a8a9463f451235f4564b845571664f597964c885a0993ece980ab0beb2054ec7",
+      "caption": "Original 900-prompt final evaluation: measured complete native GPU RDMA handoff latency from sender cache-ready to receiver-ready acknowledgement, including codec, allocation, registration and control work. Solid lines show medians and dashed lines show empirical 95th percentiles over 300 unique prompts per context and condition. These percentiles are descriptive, not confidence intervals. Text refill includes receiver tokenization and prefill."
+    },
+    "pilot-paired-handoff.png": {
+      "sha256": "5d27fe8dfd903f01ca6db18ae17dce6358d282d884448386c3344f55756b163d",
+      "caption": "Exploratory comparison on nine unique pilot prompts repeated in three process blocks. Thin lines pair the same prompt and block across the reference and fused backends; each context/backend/precision has nine observations from three unique prompts. Large markers show medians and whiskers show empirical 5th\u201395th percentiles, not confidence intervals. BF16 is optimized in the fused backend too. Blocks 1 and 2 overlapped on disjoint node pairs after block 0 completed; the comparison does not establish a population speedup."
+    },
+    "codec-phase-latency.png": {
+      "sha256": "255f82970b83457f694a1dfe2437a7daa03149c543b301525feca8f0cc5fccc9",
+      "caption": "Codec-only encode and decode measurements on nine unique real model caches, with five timed repetitions per cache/backend/precision. Each point is the median across three prompts at that context of each prompt's five-repeat median. Logarithmic latency axes make both reference and fused measurements visible. Codec timings exclude complete network handoff; separately aggregated phase medians need not sum to the combined-latency median."
+    },
+    "pilot-handoff-memory.png": {
+      "sha256": "acccedbed9413b27692f6088f64923615f0d4077c53b2c28fe2974ced8bc13d0",
+      "caption": "Exploratory 16K pilot handoff memory: median additional peak allocation above the sender's or receiver's measured handoff baseline, for three unique prompts repeated in three blocks. Receiver values include reconstructed BF16 cache residency, not only temporary codec workspace. Per-request registration remains unchanged. Bars are descriptive medians and are not confidence bounds."
+    },
+    "pilot-paired-bf16-ratios.png": {
+      "sha256": "feb3cc52951a1a79e494394ff3694c77d0972fa6481a0587fd2014a62d384bff",
+      "caption": "Exploratory same-backend comparison: INT8 or INT4 complete handoff divided by BF16 complete handoff for the same prompt and block. Lines show the median of nine paired ratios at each context (three unique prompts repeated in three blocks); vertical ranges span the three block medians, which are also shown as small points. Values below one indicate lower measured latency in this pilot. Ranges are descriptive, not confidence intervals; scheduling and node-placement variation remain possible."
+    }
+  }
+}

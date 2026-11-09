@@ -12,3 +12,4 @@ cuda = []
 
 [dependencies]
 bonsai-core = { workspace = true }
+half = "2.4"

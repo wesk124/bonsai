@@ -1,4 +1,7 @@
-"""PyTorch reference of Bonsai's KV codecs (fake quantization: quantize -> dequantize).
+"""Numerical codec reference and precision configuration helpers.
+
+``fake_quant`` retains the upstream comparison API. Actual byte packing lives
+in ``bonsai_bench.packed`` and is used by cache roundtrip and codec benchmarks.
 
 Numerics follow crates/bonsai-codec/src/reference.rs:
   symmetric : s = max|x| / qmax,            q = clamp(round(x/s), -qmax, qmax), x' = q*s
@@ -127,10 +130,11 @@ def fake_quant(x: torch.Tensor, bits: int, p: QuantParams, atom_exact: bool = Fa
     dtype, (b, h, t, d) = x.dtype, x.shape
     xf = x.to(torch.float32)
     if p.axis == HEAD_DIM:
-        if d % p.group_size:
-            raise ValueError(f"head_dim {d} not divisible by group_size {p.group_size}")
-        out = _quant_groups(xf.reshape(b, h, t, d // p.group_size, p.group_size), bits, p.symmetric, atom_exact)
-        return out.reshape(b, h, t, d).to(dtype)
+        pad = (-d) % p.group_size
+        if pad:
+            xf = torch.cat([xf, xf[..., -1:].expand(b, h, t, pad)], dim=-1)
+        out = _quant_groups(xf.reshape(b, h, t, -1, p.group_size), bits, p.symmetric, atom_exact)
+        return out.reshape(b, h, t, d + pad)[..., :d].contiguous().to(dtype)
     if p.axis == TOKEN:
         g = p.group_size
         xt = xf.transpose(2, 3)                     # [b, h, d, t]

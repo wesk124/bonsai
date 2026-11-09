@@ -21,6 +21,8 @@ pub mod loopback;
 
 #[cfg(feature = "fabric")]
 pub mod fabric;
+#[cfg(feature = "fabric")]
+mod topology;
 
 use std::{
     future::Future,
@@ -67,11 +69,19 @@ pub trait Transport: Send + Sync + 'static {
     fn link_bps(&self) -> u64;
 
     /// Register memory used as an RDMA source (sender staging ring).
+    ///
+    /// The caller retains the allocation and excludes conflicting accesses until
+    /// all writes complete and unregister succeeds. DevicePtr borrows memory.
     fn register_source(&self, ptr: DevicePtr, len: u64, dev: MemDevice) -> Result<Self::Local>;
 
     /// Register memory peers may write into (receiver arena). Returns the
     /// descriptor to ship to senders.
-    fn register_sink(&self, ptr: DevicePtr, len: u64, dev: MemDevice) -> Result<(Self::Local, RemoteRegion)>;
+    fn register_sink(
+        &self,
+        ptr: DevicePtr,
+        len: u64,
+        dev: MemDevice,
+    ) -> Result<(Self::Local, RemoteRegion)>;
 
     fn unregister(&self, region: &Self::Local) -> Result<()>;
 
@@ -79,7 +89,10 @@ pub trait Transport: Send + Sync + 'static {
 
     /// One-sided RDMA WRITE (with optional immediate). Resolves when the local
     /// NIC reports completion, i.e. the data is placed in remote memory.
-    fn write(&self, op: WriteOp<Self::Local, Self::Remote>) -> impl Future<Output = Result<()>> + Send;
+    fn write(
+        &self,
+        op: WriteOp<Self::Local, Self::Remote>,
+    ) -> impl Future<Output = Result<()>> + Send;
 
     /// Start counting writes carrying `tag`; the returned future resolves after
     /// `count` of them have landed.
@@ -97,12 +110,21 @@ pub trait Transport: Send + Sync + 'static {
 /// Future returned by [`Transport::arm_imm`].
 pub struct ImmWait {
     rx: tokio::sync::oneshot::Receiver<Result<()>>,
+    cleanup: Option<Box<dyn FnOnce() + Send + Sync>>,
 }
 
 impl ImmWait {
     pub fn new() -> (tokio::sync::oneshot::Sender<Result<()>>, Self) {
         let (tx, rx) = tokio::sync::oneshot::channel();
-        (tx, ImmWait { rx })
+        (tx, ImmWait { rx, cleanup: None })
+    }
+}
+
+impl Drop for ImmWait {
+    fn drop(&mut self) {
+        if let Some(cleanup) = self.cleanup.take() {
+            cleanup();
+        }
     }
 }
 
@@ -110,9 +132,43 @@ impl Future for ImmWait {
     type Output = Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Pin::new(&mut self.rx).poll(cx).map(|r| match r {
+        let result = Pin::new(&mut self.rx).poll(cx);
+        if result.is_ready() {
+            if let Some(cleanup) = self.cleanup.take() {
+                cleanup();
+            }
+        }
+        result.map(|r| match r {
             Ok(res) => res,
-            Err(_) => Err(BonsaiError::Transport("immediate counter dropped (disarmed)".into())),
+            Err(_) => Err(BonsaiError::Transport(
+                "immediate counter dropped (disarmed)".into(),
+            )),
         })
     }
+}
+
+pub(crate) fn check_region(ptr: DevicePtr, len: u64) -> Result<()> {
+    if ptr.0 == 0 || len == 0 {
+        return Err(BonsaiError::Transport(
+            "registration requires non-null pointer and positive length".into(),
+        ));
+    }
+    let end = ptr
+        .0
+        .checked_add(len)
+        .ok_or_else(|| BonsaiError::Transport("registration address overflow".into()))?;
+    usize::try_from(end)
+        .map_err(|_| BonsaiError::Transport("registration exceeds host address space".into()))?;
+    usize::try_from(len)
+        .map_err(|_| BonsaiError::Transport("registration length overflow".into()))?;
+    Ok(())
+}
+
+pub(crate) fn check_range(offset: u64, len: u64, capacity: u64) -> Result<()> {
+    if len == 0 || offset.checked_add(len).is_none_or(|end| end > capacity) {
+        return Err(BonsaiError::Transport(
+            "write range is empty, overflowing, or outside registration".into(),
+        ));
+    }
+    Ok(())
 }

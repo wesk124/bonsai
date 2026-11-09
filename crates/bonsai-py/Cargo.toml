@@ -10,14 +10,12 @@ name = "bonsai"
 crate-type = ["cdylib"]
 
 [features]
-default = ["fabric", "cuda"]
-fabric = ["bonsai-dataplane/fabric"]
-cuda = ["bonsai-dataplane/cuda"]
+default = ["fabric"]
+fabric = ["bonsai-transport/fabric"]
+cuda = []
 
 [dependencies]
 bonsai-core = { path = "../bonsai-core" }
-bonsai-dataplane = { path = "../bonsai-dataplane" }
 bonsai-transport = { path = "../bonsai-transport" }
-bonsai-control = { path = "../bonsai-control" }
 pyo3 = { version = "0.27", features = ["extension-module", "anyhow"] }
-tokio = { version = "1.48", features = ["rt-multi-thread"] }
+tokio = { version = "1.48", features = ["rt-multi-thread", "time", "net"] }

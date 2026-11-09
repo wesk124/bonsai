@@ -1,0 +1,17 @@
+{
+  "source_manuscript": "docs/PAPER_FUSED_DRAFT.md",
+  "source_manuscript_sha256": "55557aac69071e5897f3a2d739b2719f1160523da68de12b65d15e6cbc24edde",
+  "converted_title": "Byte-compatible fused KV-cache handoff: separating quality evidence from implementation cost",
+  "authors": [
+    "Jie Chen",
+    "Sheng Wei"
+  ],
+  "pdf_pages": 8,
+  "figure_count": 6,
+  "figure_format": "300-dpi PNG",
+  "latex_engine": "pdfTeX (TeX Live 2022/dev/Debian)",
+  "evidence_scope": "Original 900-prompt reference study plus separate nine-prompt optimized pilot repeated in three blocks. Two-point quality margin remains inconclusive.",
+  "source_code_and_data_manifest": "data/manifest.json",
+  "figure_provenance": "figures/manifest.json",
+  "standalone_figure_regeneration": "Verified byte-for-byte from script and packaged data without the repository runtime."
+}

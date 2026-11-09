@@ -4,10 +4,10 @@ use std::{num::NonZeroU8, time::Duration};
 pub enum StagingMode {
     /// Fixed ring of `depth` frame buffers, each `frame_cap` bytes. Bounds
     /// sender memory regardless of context length; encode of chunk i+1
-    /// overlaps the write of chunk i. Default.
+    /// overlaps the write of chunk i. Explicit experimental option.
     Ring { depth: u32, frame_cap: u64 },
     /// Stage the whole encoded handoff, then write. Simplest; used as the
-    /// "no pipelining" ablation and for the M1 baseline.
+    /// sequential encode-all, transfer-all, reconstruct-all protocol (default).
     Whole { capacity: u64 },
 }
 
@@ -25,8 +25,8 @@ pub struct DataPlaneConfig {
     pub throttle_bps: Option<u64>,
     /// Receiver gives up on a leased slot after this long without completion.
     pub lease_timeout: Duration,
-    /// After an abort, a slot is not reused for this long, so a late write from
-    /// the failed sender cannot corrupt a new lease.
+    /// Legacy observation interval. This duration does not authorize slot reuse;
+    /// aborted slots require an explicit transport/GPU drain.
     pub quarantine: Duration,
     /// Debug: checksum frames and verify on receive.
     pub verify_checksums: bool,
@@ -36,7 +36,7 @@ impl Default for DataPlaneConfig {
     fn default() -> Self {
         DataPlaneConfig {
             cuda_device: 0,
-            staging: StagingMode::Ring { depth: 4, frame_cap: 32 << 20 },
+            staging: StagingMode::Whole { capacity: 1 << 30 },
             arena_bytes: 8 << 30,
             max_inflight_writes: 8,
             write_shards: None,

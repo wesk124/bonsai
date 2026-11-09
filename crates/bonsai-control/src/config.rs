@@ -68,7 +68,7 @@ pub struct ServerSection {
 pub struct ModelSection {
     /// Workers must register with the same name and layout.
     pub name: String,
-    /// `"qwen2.5-1.5b-instruct"`, or omit and give the four fields below.
+    /// `"qwen3-4b-instruct-2507"`, `"qwen2.5-1.5b-instruct"`, or explicit fields.
     pub preset: Option<String>,
     pub num_layers: Option<u16>,
     pub num_kv_heads: Option<u16>,
@@ -321,7 +321,11 @@ impl CtlConfig {
 
     pub fn layout(&self) -> Result<KvLayout> {
         let m = &self.model;
-        match m.preset.as_deref() {
+        if m.preset.is_some() && (m.num_layers.is_some() || m.num_kv_heads.is_some() || m.head_dim.is_some() || m.dtype.is_some()) {
+            return Err(invalid("model preset cannot be combined with explicit layout fields"));
+        }
+        let layout = match m.preset.as_deref() {
+            Some("qwen3-4b-instruct-2507") => Ok(KvLayout::QWEN3_4B_INSTRUCT_2507),
             Some("qwen2.5-1.5b-instruct") => Ok(KvLayout::QWEN2_5_1_5B),
             Some(other) => Err(invalid(format!("unknown model preset {other:?}"))),
             None => {
@@ -339,7 +343,9 @@ impl CtlConfig {
                     dtype,
                 })
             }
-        }
+        }?;
+        CodecSpec::Bf16.validate(&layout)?;
+        Ok(layout)
     }
 
     pub fn codec(&self, name: &str) -> Result<CodecSpec> {
@@ -394,14 +400,20 @@ impl CtlConfig {
         // A context length that is a multiple of every alignment, so only
         // chunk-size/alignment mistakes are reported.
         let layout = self.layout()?;
-        let seq = 4096u32.max(chunk.tokens_per_chunk * 2);
+        let seq = 4096u32.max(chunk.tokens_per_chunk.checked_mul(2).ok_or_else(|| invalid(format!("{what}: chunk tokens overflow")))?);
         ChunkPlan::build(layout, precision.clone(), seq, chunk).map(|_| ()).map_err(|e| invalid(format!("{what}: {e}")))
     }
 
     /// Validate everything and build the coordinator's components.
     pub fn resolve(&self) -> Result<Resolved> {
         let layout = self.layout()?;
+        if self.model.name.trim().is_empty() { return Err(invalid("model.name must not be empty")); }
+        if self.server.tick_ms == 0 || self.timeouts.heartbeat_ms == 0 || self.timeouts.handoff_ms == 0 || self.timeouts.decode_ms == 0 {
+            return Err(invalid("server tick and timeouts must be positive"));
+        }
+        if self.admission.max_lease_attempts == 0 { return Err(invalid("admission.max_lease_attempts must be positive")); }
         let alpha = self.codec.adaptive.as_ref().map(|a| a.bandwidth_ewma_alpha).unwrap_or(d_alpha());
+        if !alpha.is_finite() || !(0.0..=1.0).contains(&alpha) { return Err(invalid("bandwidth_ewma_alpha must be in [0, 1]")); }
         let coordinator = CoordinatorConfig {
             layout,
             model: self.model.name.clone(),
@@ -414,6 +426,7 @@ impl CtlConfig {
             max_queue: self.admission.max_queue,
             bandwidth_ewma_alpha: alpha,
         };
+        for name in self.codecs.keys() { self.codec(name)?; }
         // Validate every named precision, even unused ones, so typos surface early.
         for name in self.precisions.keys() {
             self.precision(name)?;
@@ -431,6 +444,15 @@ impl CtlConfig {
                     .adaptive
                     .as_ref()
                     .ok_or_else(|| invalid("codec.policy = \"adaptive\" needs [codec.adaptive]"))?;
+                if !a.max_quality_loss.is_finite() || a.max_quality_loss < 0.0 || !a.min_gain.is_finite() || !(0.0..1.0).contains(&a.min_gain) {
+                    return Err(invalid("adaptive quality loss must be nonnegative and min_gain must be in [0, 1)"));
+                }
+                let m = &a.cost_model;
+                if !m.per_write_us.is_finite() || m.per_write_us < 0.0 || !m.per_chunk_kernel_us.is_finite() || m.per_chunk_kernel_us < 0.0
+                    || !m.link_efficiency.is_finite() || !(0.0..=1.0).contains(&m.link_efficiency) || m.link_efficiency == 0.0
+                    || [m.bf16, m.int8, m.int4].iter().any(|r| !r.encode_gbps.is_finite() || r.encode_gbps <= 0.0 || !r.decode_gbps.is_finite() || r.decode_gbps <= 0.0) {
+                    return Err(invalid("adaptive cost model needs finite nonnegative costs, positive rates, and link efficiency in (0, 1]"));
+                }
                 if a.candidates.is_empty() {
                     return Err(invalid("codec.adaptive.candidates is empty"));
                 }
@@ -438,6 +460,9 @@ impl CtlConfig {
                 for (i, c) in a.candidates.iter().enumerate() {
                     let precision = self.precision(&c.precision)?;
                     self.check_plan(&format!("codec.adaptive.candidates[{i}]"), &precision, c.chunk.into())?;
+                    if c.quality_loss.is_empty() || c.quality_loss.iter().any(|(ctx, loss)| *ctx == 0 || !loss.is_finite() || *loss < 0.0) {
+                        return Err(invalid(format!("codec.adaptive.candidates[{i}].quality_loss needs positive contexts and finite nonnegative losses")));
+                    }
                     if !c.quality_loss.windows(2).all(|w| w[0].0 < w[1].0) {
                         return Err(invalid(format!("codec.adaptive.candidates[{i}].quality_loss must be ascending by context")));
                     }
@@ -592,6 +617,35 @@ mod tests {
         ))
         .unwrap();
         assert!(c.resolve().is_err());
+    }
+
+    #[test]
+    fn qwen3_defaults_and_invalid_configuration() {
+        let cfg = CtlConfig::from_toml_str(TEMPLATE).unwrap();
+        assert_eq!(cfg.layout().unwrap(), KvLayout::QWEN3_4B_INSTRUCT_2507);
+        assert_eq!(cfg.model.name, "Qwen/Qwen3-4B-Instruct-2507");
+        assert!(matches!(cfg.codec.policy, CodecPolicyKind::Static));
+        for (before, after) in [
+            ("tick_ms = 50", "tick_ms = 0"),
+            ("heartbeat_ms = 2000", "heartbeat_ms = 0"),
+            ("max_lease_attempts = 2", "max_lease_attempts = 0"),
+            ("bandwidth_ewma_alpha = 0.2", "bandwidth_ewma_alpha = nan"),
+            ("tokens = 0, layers = 1", "tokens = 4294967295, layers = 1"),
+            ("preset = \"qwen3-4b-instruct-2507\"", "num_layers = 0\nnum_kv_heads = 8\nhead_dim = 128"),
+            ("# num_layers = 36", "num_layers = 36"),
+        ] {
+            let invalid = CtlConfig::from_toml_str(&TEMPLATE.replace(before, after)).unwrap();
+            assert!(invalid.resolve().is_err(), "accepted {before} -> {after}");
+        }
+        let adaptive = TEMPLATE.replace("policy = \"static\"", "policy = \"adaptive\"");
+        for (before, after) in [
+            ("encode_gbps = 400.0", "encode_gbps = 0.0"),
+            ("link_efficiency = 0.9", "link_efficiency = 1.1"),
+            ("min_gain = 0.1", "min_gain = nan"),
+            ("[[32768, 0.0]]", "[[32768, nan]]"),
+        ] {
+            assert!(CtlConfig::from_toml_str(&adaptive.replace(before, after)).unwrap().resolve().is_err());
+        }
     }
 
     #[test]

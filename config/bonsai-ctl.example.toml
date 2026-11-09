@@ -18,13 +18,13 @@ tick_ms = 50
 # ---------------------------------------------------------------------------
 [model]
 # Workers must register the same model name and KV layout, or they are rejected.
-name = "Qwen/Qwen2.5-1.5B-Instruct"
-preset = "qwen2.5-1.5b-instruct"        # 28 layers x 2 KV heads x 128 dim, bf16
+name = "Qwen/Qwen3-4B-Instruct-2507"
+preset = "qwen3-4b-instruct-2507"       # 36 layers x 8 KV heads x 128 dim, bf16
 # Without a preset, give the layout explicitly:
-# num_layers = 28
-# num_kv_heads = 2
+# num_layers = 36
+# num_kv_heads = 8
 # head_dim = 128
-# dtype = "bf16"                        # bf16 | f16 | f32
+# dtype = "bf16"                        # current wire format requires bf16
 
 # ---------------------------------------------------------------------------
 [admission]                             # (optional)
@@ -84,7 +84,7 @@ value = { group_size = 32, axis = "head_dim", symmetric = true }
 default = "int4"
 overrides = [
   { layers = [0, 4],   codec = "int8" },
-  { layers = [24, 28], codec = "int8" },
+  { layers = [32, 36], codec = "int8" },
 ]
 
 [precisions.bf16-first]
@@ -100,8 +100,8 @@ policy = "static"
 [codec.static]
 precision = "int8"
 # Chunk = unit of one RDMA write. tokens = 0 / layers = 0 mean "all".
-# Per-layer chunks give pipelining and progressive decode; token chunking
-# bounds frame size for long prompts (must be a multiple of 32 for int4).
+# Sequential handoff uses chunks as bounded RDMA write units;
+# token chunk sizes must be a multiple of 32 for int4.
 chunk = { tokens = 0, layers = 1 }
 
 [codec.adaptive]

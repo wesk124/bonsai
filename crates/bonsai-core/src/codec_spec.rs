@@ -104,17 +104,19 @@ impl CodecSpec {
     }
 
     pub fn validate(&self, layout: &KvLayout) -> Result<()> {
+        if layout.num_layers == 0 || layout.num_kv_heads == 0 || layout.head_dim == 0 {
+            return Err(BonsaiError::InvalidConfig("KV dimensions must be positive".into()));
+        }
+        if layout.dtype != crate::layout::ElemType::Bf16 {
+            return Err(BonsaiError::InvalidConfig("handoff codecs require BF16 input".into()));
+        }
         if let CodecSpec::Quant { key, value, .. } = self {
             for p in [key, value] {
                 if p.group_size == 0 {
                     return Err(BonsaiError::InvalidConfig("group_size must be > 0".into()));
                 }
-                if p.axis == GroupAxis::HeadDim && layout.head_dim % p.group_size != 0 {
-                    return Err(BonsaiError::InvalidConfig(format!(
-                        "head_dim {} not divisible by group_size {}",
-                        layout.head_dim, p.group_size
-                    )));
-                }
+                // A partial final group is encoded with its actual elements.
+                // section_bytes uses ceil division for its metadata count.
             }
         }
         Ok(())
@@ -206,6 +208,36 @@ mod tests {
         assert_eq!(CodecSpec::Bf16.token_alignment(), 1);
         assert_eq!(CodecSpec::int8_default(&L).token_alignment(), 1);
         assert_eq!(CodecSpec::int4_default().token_alignment(), 32);
+    }
+
+    #[test]
+    fn qwen3_proposal_sizes() {
+        let layout = KvLayout::QWEN3_4B_INSTRUCT_2507;
+        assert_eq!(layout.raw_bytes_per_token(), 147_456);
+        assert_eq!(CodecSpec::Bf16.encoded_bytes(&layout, 4096), 576 << 20);
+        assert_eq!(CodecSpec::int8_default(&layout).encoded_bytes(&layout, 4096), 306_708_480);
+        assert_eq!(CodecSpec::int4_default().encoded_bytes(&layout, 4096), 180 << 20);
+    }
+
+    #[test]
+    fn partial_channel_groups_are_counted_and_valid() {
+        let layout = KvLayout { num_layers: 1, num_kv_heads: 1, head_dim: 35, dtype: crate::layout::ElemType::Bf16 };
+        let codec = CodecSpec::int4_default();
+        codec.validate(&layout).unwrap();
+        let (key, value) = codec.section_bytes(&layout, 1, 3);
+        assert_eq!(key.payload, 53);
+        assert_eq!(key.meta, 35 * 4);
+        assert_eq!(value.meta, 3 * 2 * 4);
+    }
+
+    #[test]
+    fn reject_non_bf16_and_zero_layout() {
+        let mut layout = KvLayout::QWEN3_4B_INSTRUCT_2507;
+        layout.dtype = crate::layout::ElemType::F16;
+        assert!(CodecSpec::Bf16.validate(&layout).is_err());
+        layout.dtype = crate::layout::ElemType::Bf16;
+        layout.head_dim = 0;
+        assert!(CodecSpec::Bf16.validate(&layout).is_err());
     }
 }
 

@@ -1,0 +1,39 @@
+{
+  "status": "complete_and_verified",
+  "files": {
+    "manuscript.tex": "e344405e10959c386169fca63979eae7a7d1032f012056db0abe4db028379b56",
+    "references.bib": "83fe0ddde4853fa55be2ccfa578fe418d2b776f14640c21c72df2fe8c1f8128d",
+    "build.sh": "185e1876f566259f2ebcb83201e39242d112f509a7e660a5253219fb7dd935b8",
+    "README.md": "d28de8661b77684ef318da021829ccfd013210070f3ef6cb9b9202bb78dd5e7f",
+    "make_figures.py": "a9e3a04641acbd23f5f8ca986cd5d03095bda234b4e624743a02088c8329bf74",
+    "validate_pdf.py": "ed230b5420c4062ed3b4db1bbdb0144cf6cbd6df5d54b6a474c2b90c5e875f0d",
+    "requirements-figures.txt": "e223dd80b0e9e8cf9ef2e61cf4b054c375c41f15451e93234774784a2fa8cd1c",
+    "validation.json": "a6daeefce170588921bfdb7af986ad77b780327bcdd5f439b8e55e816101f952",
+    "source-provenance.json": "3ecefc5b51c098d28a93b3363c8d3f8db0157e56b2929ba2d705961ada86f1bd",
+    "figures/codec-phase-latency.png": "255f82970b83457f694a1dfe2437a7daa03149c543b301525feca8f0cc5fccc9",
+    "figures/final-handoff-latency.png": "a8a9463f451235f4564b845571664f597964c885a0993ece980ab0beb2054ec7",
+    "figures/final-quality-bytes.png": "b4d92989b8635afde85273ca372614073cb045c1df6d9762d2852d5d382368dd",
+    "figures/manifest.json": "772f60241b41f0ad4283a1cfcca165e8efb83dc1760b8f5b81787ff55926b8cc",
+    "figures/pilot-handoff-memory.png": "acccedbed9413b27692f6088f64923615f0d4077c53b2c28fe2974ced8bc13d0",
+    "figures/pilot-paired-bf16-ratios.png": "feb3cc52951a1a79e494394ff3694c77d0972fa6481a0587fd2014a62d384bff",
+    "figures/pilot-paired-handoff.png": "5d27fe8dfd903f01ca6db18ae17dce6358d282d884448386c3344f55756b163d",
+    "data/accepted-final-manifest.json": "5eb39b413fa35200acd8327368b7e5693b79e456aaf5a4b8e932f08e949aacaf",
+    "data/accepted-pilot-manifest.json": "d94240382deaf3cd3da9da334911780fbd7c439a9ba6fad6ab23325482ca2250",
+    "data/codec-aggregate.json": "67199d7011215741ec4d8c7f3a6a6fcd808ead1ddaa40050c862a4d40fea6d06",
+    "data/final-analysis.json": "1ea1deb1122ce072b6564d29ccd9abe68e6734d1b4a2344cec004ec8492aa1ca",
+    "data/final-campaign.json": "166c71ac3cb7d0e973ff5c5c8080bb90d60921211328370a434ca39ea7b88ebf",
+    "data/manifest.json": "f2fb64447bf34f32631d5dd67d9f59146095f6898987778f543b2803ef59be0f",
+    "data/pilot-handoff-pairs.json": "5f10e7a841a5e8e4acd1d8ad0a55a70609ecd30ac1c3d04b1014849f9c4b0a4a",
+    "data/pilot-summary.json": "c77ebdf40f53ee0e27d02bfdff2b6d2ee4e4b296b1855d48f3075fd333468b64",
+    "manuscript.pdf": "447fc6c34eea10f13116975f72fa101060ff5446278223508e353b4ef7cde325",
+    "latex-source.zip": "64d09c0a96e6461e74452ddb9de327cfca98fb71b502956251b13e51b6007a5c"
+  },
+  "visual_inspection_passed": true,
+  "standalone_latex_build": {
+    "status": "PASS",
+    "fresh_extraction": "/tmp/kv-cache-paper-check-pq98g8i9",
+    "pages": 8,
+    "figures_supplied_as_png": 6,
+    "repository_runtime_required": false
+  }
+}

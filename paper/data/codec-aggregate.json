@@ -1,0 +1,206 @@
+{
+  "status": "PASS",
+  "run_fingerprint": "98566f1bb13eb65a9332b77be8a57bf0a6d83b5a2fb223b6a5e9db0ae5769404",
+  "scope": "Median across three unique prompts per context of each prompt's five-repeat median. Combined latency is the median of per-prompt encode+decode medians. These are codec-only timings, not complete handoff.",
+  "memory_scope": "Median of per-prompt maximum extra allocated bytes over five repeats; decoded cache residency is included.",
+  "cells": [
+    {
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "backend": "pytorch_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 4.672200999999999,
+      "encode_ms": 1.688485,
+      "encode_peak_extra_mib": 1112.0625,
+      "decode_ms": 2.962498,
+      "decode_peak_extra_mib": 1112.0625
+    },
+    {
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "backend": "triton_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 3.209835,
+      "encode_ms": 1.540846,
+      "encode_peak_extra_mib": 556.03125,
+      "decode_ms": 1.670052,
+      "decode_peak_extra_mib": 556.03125
+    },
+    {
+      "context_tokens": 4096,
+      "precision": "int4",
+      "backend": "pytorch_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 43.234415,
+      "encode_ms": 28.026947,
+      "encode_peak_extra_mib": 352.48046875,
+      "decode_ms": 15.244036,
+      "decode_peak_extra_mib": 1112.6640625
+    },
+    {
+      "context_tokens": 4096,
+      "precision": "int4",
+      "backend": "triton_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 5.126681,
+      "encode_ms": 2.847136,
+      "encode_peak_extra_mib": 174.06787109375,
+      "decode_ms": 2.272449,
+      "decode_peak_extra_mib": 556.03173828125
+    },
+    {
+      "context_tokens": 4096,
+      "precision": "int8",
+      "backend": "pytorch_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 24.710972,
+      "encode_ms": 15.20587,
+      "encode_peak_extra_mib": 567.63330078125,
+      "decode_ms": 9.475766,
+      "decode_peak_extra_mib": 1112.0625
+    },
+    {
+      "context_tokens": 4096,
+      "precision": "int8",
+      "backend": "triton_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 3.8582359999999998,
+      "encode_ms": 1.864078,
+      "encode_peak_extra_mib": 282.3603515625,
+      "decode_ms": 1.982024,
+      "decode_peak_extra_mib": 556.03173828125
+    },
+    {
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "backend": "pytorch_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 7.815899999999999,
+      "encode_ms": 2.830509,
+      "encode_peak_extra_mib": 2265.1875,
+      "decode_ms": 4.996866,
+      "decode_peak_extra_mib": 2265.1875
+    },
+    {
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "backend": "triton_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 4.340554,
+      "encode_ms": 1.54829,
+      "encode_peak_extra_mib": 1132.59375,
+      "decode_ms": 2.792614,
+      "decode_peak_extra_mib": 1132.59375
+    },
+    {
+      "context_tokens": 8192,
+      "precision": "int4",
+      "backend": "pytorch_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 61.729809,
+      "encode_ms": 41.835315,
+      "encode_peak_extra_mib": 709.99609375,
+      "decode_ms": 19.88548,
+      "decode_peak_extra_mib": 2265.6953125
+    },
+    {
+      "context_tokens": 8192,
+      "precision": "int4",
+      "backend": "triton_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 9.176364,
+      "encode_ms": 5.199838,
+      "encode_peak_extra_mib": 354.15576171875,
+      "decode_ms": 3.965152,
+      "decode_peak_extra_mib": 1132.59423828125
+    },
+    {
+      "context_tokens": 8192,
+      "precision": "int8",
+      "backend": "pytorch_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 40.177435,
+      "encode_ms": 25.159874,
+      "encode_peak_extra_mib": 1150.3017578125,
+      "decode_ms": 15.017561,
+      "decode_peak_extra_mib": 2265.1875
+    },
+    {
+      "context_tokens": 8192,
+      "precision": "int8",
+      "backend": "triton_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 4.107965999999999,
+      "encode_ms": 2.02887,
+      "encode_peak_extra_mib": 575.14599609375,
+      "decode_ms": 2.07793,
+      "decode_peak_extra_mib": 1132.59423828125
+    },
+    {
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "backend": "pytorch_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 12.301271999999999,
+      "encode_ms": 2.741672,
+      "encode_peak_extra_mib": 4569.75,
+      "decode_ms": 9.5596,
+      "decode_peak_extra_mib": 4569.75
+    },
+    {
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "backend": "triton_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 6.980718,
+      "encode_ms": 1.938973,
+      "encode_peak_extra_mib": 2284.875,
+      "decode_ms": 5.037079,
+      "decode_peak_extra_mib": 2284.875
+    },
+    {
+      "context_tokens": 16384,
+      "precision": "int4",
+      "backend": "pytorch_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 104.515451,
+      "encode_ms": 70.777886,
+      "encode_peak_extra_mib": 1428.69287109375,
+      "decode_ms": 33.766503,
+      "decode_peak_extra_mib": 4570.1875
+    },
+    {
+      "context_tokens": 16384,
+      "precision": "int4",
+      "backend": "triton_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 17.296515,
+      "encode_ms": 9.916643,
+      "encode_peak_extra_mib": 714.19970703125,
+      "decode_ms": 7.372074,
+      "decode_peak_extra_mib": 2284.87548828125
+    },
+    {
+      "context_tokens": 16384,
+      "precision": "int8",
+      "backend": "pytorch_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 71.575741,
+      "encode_ms": 43.848804,
+      "encode_peak_extra_mib": 2321.4521484375,
+      "decode_ms": 27.726937,
+      "decode_peak_extra_mib": 4569.75
+    },
+    {
+      "context_tokens": 16384,
+      "precision": "int8",
+      "backend": "triton_packed_v1",
+      "unique_prompts": 3,
+      "combined_ms": 6.990203,
+      "encode_ms": 3.572743,
+      "encode_peak_extra_mib": 1160.28857421875,
+      "decode_ms": 3.410724,
+      "decode_peak_extra_mib": 2284.87548828125
+    }
+  ]
+}

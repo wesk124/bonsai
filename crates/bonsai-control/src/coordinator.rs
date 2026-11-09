@@ -86,10 +86,26 @@ impl Coordinator {
 
     pub fn on_message(&mut self, from: ConnId, msg: ToCoordinator, now: Instant) -> Vec<Outbound> {
         let mut out = Vec::new();
+        let owns_worker = |id| self.registry.get(id).is_some_and(|w| w.conn == from);
+        let assigned = |id, prefill: bool, either: bool| {
+            self.sessions.get(id).and_then(|s| s.state.workers()).is_none_or(|(p, d)| {
+                if either { owns_worker(p) || owns_worker(d) } else { owns_worker(if prefill { p } else { d }) }
+            })
+        };
+        let authorized = match &msg {
+            ToCoordinator::Register(_) => self.registry.by_conn(from).is_none(),
+            ToCoordinator::Heartbeat { worker, .. } | ToCoordinator::Deregister { worker } => owns_worker(*worker),
+            ToCoordinator::SlotGranted(grant) => assigned(grant.handoff, false, false) && owns_worker(grant.decode_worker),
+            ToCoordinator::SlotDenied { handoff, .. } | ToCoordinator::Finished { handoff, .. } => assigned(*handoff, false, false),
+            ToCoordinator::PrefillDone { handoff, .. } => assigned(*handoff, true, false),
+            ToCoordinator::HandoffFailed { handoff, .. } => assigned(*handoff, false, true),
+            ToCoordinator::Submit(_) => true,
+        };
+        if !authorized { return vec![Outbound { to: from, msg: FromCoordinator::Shutdown }]; }
         match msg {
             ToCoordinator::Register(info) => {
-                if info.layout != self.cfg.layout {
-                    warn!(?info.layout, "worker layout mismatch; rejecting");
+                if info.layout != self.cfg.layout || info.model != self.cfg.model {
+                    warn!(?info.layout, "worker model or layout mismatch; rejecting");
                     out.push(Outbound { to: from, msg: FromCoordinator::Shutdown });
                 } else {
                     let id = self.registry.register(from, info, now);
@@ -170,7 +186,8 @@ impl Coordinator {
         if let Some(id) = self.registry.by_conn(conn) {
             self.worker_lost(id, "disconnected", now, &mut out);
         }
-        // A disconnected client's requests still run; their Completed is dropped by the server.
+        let abandoned: Vec<_> = self.sessions.iter().filter(|(_, s)| s.client == conn).map(|(id, _)| *id).collect();
+        for id in abandoned { self.fail_with_retry(id, "client disconnected".into(), now, &mut out, false); }
         self.schedule(now, &mut out);
         out
     }
@@ -278,6 +295,7 @@ impl Coordinator {
         report.receiver = partial.receiver;
         report.concurrency = self.sessions.iter().count() as u32 + 1;
         report.ttft_ns = s.first_token_at.map(|t| (t - s.submitted_at).as_nanos() as u64).unwrap_or(0);
+        report.measured_handoff_ack_ns = partial.measured_handoff_ack_ns;
         report.ttfdt_ns = partial.ttfdt_ns; // measured by the client; see docs/HLD.md §7
         report.e2e_ns = (now - s.submitted_at).as_nanos() as u64;
         self.sink.record(&report);
@@ -288,6 +306,10 @@ impl Coordinator {
     }
 
     fn fail(&mut self, id: HandoffId, reason: String, now: Instant, out: &mut Vec<Outbound>) {
+        self.fail_with_retry(id, reason, now, out, true);
+    }
+
+    fn fail_with_retry(&mut self, id: HandoffId, reason: String, now: Instant, out: &mut Vec<Outbound>, allow_retry: bool) {
         let Some(s) = self.sessions.get(id) else { return };
         let workers = s.state.workers();
         let slot_bytes = s.params.plan().map(|p| p.slot_bytes).unwrap_or(0);
@@ -304,7 +326,7 @@ impl Coordinator {
         self.denied.remove(&id);
 
         let can_fallback =
-            self.cfg.fallback_to_bf16 && !s.params.precision.is_uniform(CodecSpec::Bf16) && s.retries < self.cfg.max_retries;
+            allow_retry && self.cfg.fallback_to_bf16 && !s.params.precision.is_uniform(CodecSpec::Bf16) && s.retries < self.cfg.max_retries;
         if can_fallback {
             // New HandoffId => new slot/epoch, so stale writes can't be miscounted.
             let mut req = s.request;

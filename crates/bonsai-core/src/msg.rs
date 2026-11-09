@@ -158,14 +158,50 @@ pub mod framing {
     pub const MAX_FRAME: usize = 64 << 20;
 
     pub fn encode<T: Serialize>(msg: &T) -> Result<Vec<u8>> {
-        let body = postcard::to_allocvec(msg)?;
-        let mut out = Vec::with_capacity(4 + body.len());
-        out.extend_from_slice(&(body.len() as u32).to_le_bytes());
-        out.extend_from_slice(&body);
+        encode_with_limit(msg, MAX_FRAME)
+    }
+
+    fn encode_with_limit<T: Serialize>(msg: &T, limit: usize) -> Result<Vec<u8>> {
+        // Count before allocating an oversized serialized body.
+        let len = postcard::experimental::serialized_size(msg)?;
+        if len == 0 || len > limit || len > u32::MAX as usize {
+            return Err(crate::BonsaiError::Protocol(format!("invalid control frame length {len}")));
+        }
+        let mut out = vec![0; 4 + len];
+        out[..4].copy_from_slice(&(len as u32).to_le_bytes());
+        let body = postcard::to_slice(msg, &mut out[4..])?;
+        if body.len() != len {
+            return Err(crate::BonsaiError::Protocol("control message size changed during serialization".into()));
+        }
         Ok(out)
     }
 
     pub fn decode<'a, T: Deserialize<'a>>(body: &'a [u8]) -> Result<T> {
-        Ok(postcard::from_bytes(body)?)
+        if body.is_empty() || body.len() > MAX_FRAME {
+            return Err(crate::BonsaiError::Protocol(format!("invalid control frame length {}", body.len())));
+        }
+        let (message, trailing) = postcard::take_from_bytes(body)?;
+        if !trailing.is_empty() {
+            return Err(crate::BonsaiError::Protocol("trailing bytes in control frame".into()));
+        }
+        Ok(message)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn bounded_frame_roundtrip_and_rejection() {
+            let message = ToCoordinator::Deregister { worker: WorkerId(17) };
+            let encoded = encode(&message).unwrap();
+            assert_eq!(u32::from_le_bytes(encoded[..4].try_into().unwrap()) as usize, encoded.len() - 4);
+            assert!(matches!(decode::<ToCoordinator>(&encoded[4..]).unwrap(), ToCoordinator::Deregister { worker: WorkerId(17) }));
+            assert!(encode_with_limit(&message, encoded.len() - 5).is_err());
+            assert_eq!(encode_with_limit(&message, encoded.len() - 4).unwrap(), encoded);
+            let mut trailing = encoded[4..].to_vec(); trailing.push(0);
+            assert!(decode::<ToCoordinator>(&trailing).is_err());
+            assert!(decode::<ToCoordinator>(&[]).is_err());
+            assert!(decode::<ToCoordinator>(&[255]).is_err());
+        }
     }
 }

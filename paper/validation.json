@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "pages": 8,
+  "title": "Byte-compatible fused KV-cache handoff: separating quality evidence from implementation cost",
+  "authors": "Jie Chen and Sheng Wei",
+  "pdf_sha256": "447fc6c34eea10f13116975f72fa101060ff5446278223508e353b4ef7cde325",
+  "figure_png_files": [
+    "codec-phase-latency.png",
+    "final-handoff-latency.png",
+    "final-quality-bytes.png",
+    "pilot-handoff-memory.png",
+    "pilot-paired-bf16-ratios.png",
+    "pilot-paired-handoff.png"
+  ],
+  "embedded_images_per_page": [
+    0,
+    0,
+    0,
+    2,
+    1,
+    1,
+    2,
+    0
+  ],
+  "required_content_checks": 20,
+  "unresolved_references": 0,
+  "layout_warnings_for_visual_review": [],
+  "visual_review": {
+    "status": "PASS",
+    "all_pages_inspected": 8,
+    "checks": [
+      "readable figures and tables",
+      "all six plots visible without clipped data",
+      "no blank or overflow pages",
+      "reproducibility appendix and bibliography legible"
+    ]
+  },
+  "original_experiment_artifacts_verified_unchanged": 111,
+  "optimized_experiment_artifacts_verified_unchanged": 304
+}

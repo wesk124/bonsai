@@ -10,14 +10,18 @@ use crate::ids::{HandoffId, RequestId};
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct SenderTimings {
     pub prefill_ns: u64,
-    /// Sum of GPU time of encode kernels (CUDA events).
+    /// Sum of per-chunk CUDA event intervals around encode kernels.
     pub encode_gpu_ns: u64,
-    /// Prefill done -> slot grant available (0 if the grant arrived first).
+    /// Time waiting inside send for the slot grant.
     pub grant_wait_ns: u64,
     /// Time spent waiting for a free staging buffer (backpressure).
     pub staging_wait_ns: u64,
     /// Prefill done -> last write completion. The sender half of handoff latency.
     pub handoff_send_ns: u64,
+    /// Whole mode: encode-complete -> frame writes complete, before trailer.
+    /// Ring mode: overlapping encode/write wall window, not isolated RDMA time.
+    #[serde(default)]
+    pub transfer_wall_ns: u64,
     pub wire_bytes: u64,
     /// Payload + metadata without padding.
     pub useful_bytes: u64,
@@ -30,7 +34,7 @@ pub struct SenderTimings {
 pub struct ReceiverTimings {
     /// Lease -> all immediates counted.
     pub wait_ns: u64,
-    /// Last immediate -> all layers dequantized.
+    /// Sum of per-chunk CUDA reconstruction event intervals.
     pub decode_gpu_ns: u64,
     pub decode_wall_ns: u64,
     /// Dequantized tensors -> `DynamicCache` ready for `generate`.
@@ -61,12 +65,25 @@ pub struct HandoffReport {
     /// This is the TTFT that includes the KV handoff.
     pub ttfdt_ns: u64,
     pub e2e_ns: u64,
+    /// Measured prefill-ready -> receiver-cache-ready ACK on one clock.
+    /// Absent until an explicit ACK measurement is supplied.
+    #[serde(default)]
+    pub measured_handoff_ack_ns: Option<u64>,
 }
 
 impl HandoffReport {
-    /// KV handoff latency: sender (encode + RDMA) + receiver (reconstruct + rebuild cache).
-    pub fn handoff_latency_ns(&self) -> u64 {
-        self.sender.handoff_send_ns + self.receiver.decode_wall_ns + self.receiver.cache_build_ns
+    /// Actual ready-ACK latency, when measured on one monotonic clock.
+    pub fn handoff_latency_ns(&self) -> Option<u64> {
+        self.measured_handoff_ack_ns
+    }
+
+    /// Phase sum for the sequential protocol only. This is an estimate, not a
+    /// measured ready latency; it must not be used for progressive overlap.
+    pub fn sequential_phase_estimate_ns(&self) -> u64 {
+        self.sender
+            .handoff_send_ns
+            .saturating_add(self.receiver.decode_wall_ns)
+            .saturating_add(self.receiver.cache_build_ns)
     }
 
     pub fn decode_tokens_per_sec(&self) -> f64 {
@@ -74,5 +91,21 @@ impl HandoffReport {
             return 0.0;
         }
         self.receiver.decode_tokens as f64 * 1e9 / self.receiver.decode_ns as f64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn phase_estimate_does_not_fabricate_ready_ack() {
+        let mut r = HandoffReport::default();
+        r.sender.handoff_send_ns = 100;
+        r.receiver.decode_wall_ns = 30;
+        r.receiver.cache_build_ns = 10;
+        assert_eq!(r.handoff_latency_ns(), None);
+        assert_eq!(r.sequential_phase_estimate_ns(), 140);
+        r.measured_handoff_ack_ns = Some(125);
+        assert_eq!(r.handoff_latency_ns(), Some(125));
     }
 }

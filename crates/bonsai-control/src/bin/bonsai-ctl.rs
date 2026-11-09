@@ -39,7 +39,8 @@ fn parse_args() -> Result<Args, String> {
     Ok(Args { config: config.ok_or("--config is required")?, check, listen })
 }
 
-fn main() -> ExitCode {
+#[tokio::main]
+async fn main() -> ExitCode {
     let args = match parse_args() {
         Ok(a) => a,
         Err(e) => {
@@ -86,9 +87,17 @@ fn main() -> ExitCode {
     };
     let listen = args.listen.unwrap_or(resolved.listen);
     let coordinator = Coordinator::new(resolved.coordinator, resolved.placement, resolved.codec_policy, sink);
-    let _server_cfg = server::ServerConfig { listen, tick: resolved.tick };
-    let _ = coordinator;
-    // The TCP front end (server::serve) lands in milestone 1.
-    eprintln!("bonsai-ctl: config OK, but the TCP server is not implemented yet (milestone 1). Use --check.");
-    ExitCode::FAILURE
+    let server_cfg = server::ServerConfig { listen, tick: resolved.tick };
+    eprintln!("bonsai-ctl: listening on {listen}");
+    match server::serve_until(server_cfg, coordinator, async {
+        if let Err(error) = tokio::signal::ctrl_c().await {
+            eprintln!("error: installing shutdown signal handler: {error}");
+        }
+    }).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("error: coordinator server: {error}");
+            ExitCode::FAILURE
+        }
+    }
 }

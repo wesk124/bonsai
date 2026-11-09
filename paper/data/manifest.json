@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "datasets": {
+    "final-campaign.json": {
+      "original_relative_path": "results/analysis-final/campaign/campaign.json",
+      "original_sha256": "166c71ac3cb7d0e973ff5c5c8080bb90d60921211328370a434ca39ea7b88ebf",
+      "accepted_manifest": "accepted-final-manifest.json",
+      "accepted_manifest_entry": "/mnt/home/jiechen7/projects/HW/bonsai/results/analysis-final/campaign/campaign.json",
+      "packaged_sha256": "166c71ac3cb7d0e973ff5c5c8080bb90d60921211328370a434ca39ea7b88ebf"
+    },
+    "final-analysis.json": {
+      "original_relative_path": "results/analysis-final/analysis.json",
+      "original_sha256": "1ea1deb1122ce072b6564d29ccd9abe68e6734d1b4a2344cec004ec8492aa1ca",
+      "accepted_manifest": "accepted-final-manifest.json",
+      "accepted_manifest_entry": "/mnt/home/jiechen7/projects/HW/bonsai/results/analysis-final/analysis.json",
+      "packaged_sha256": "1ea1deb1122ce072b6564d29ccd9abe68e6734d1b4a2344cec004ec8492aa1ca"
+    },
+    "pilot-summary.json": {
+      "original_relative_path": "runs/fused-20261108/analysis/summary.json",
+      "original_sha256": "c77ebdf40f53ee0e27d02bfdff2b6d2ee4e4b296b1855d48f3075fd333468b64",
+      "accepted_manifest": "accepted-pilot-manifest.json",
+      "accepted_manifest_entry": "analysis/summary.json",
+      "packaged_sha256": "c77ebdf40f53ee0e27d02bfdff2b6d2ee4e4b296b1855d48f3075fd333468b64"
+    },
+    "codec-aggregate.json": {
+      "original_relative_path": "runs/fused-20261108/codec/aggregate.json",
+      "original_sha256": "67199d7011215741ec4d8c7f3a6a6fcd808ead1ddaa40050c862a4d40fea6d06",
+      "accepted_manifest": "accepted-pilot-manifest.json",
+      "accepted_manifest_entry": "codec/aggregate.json",
+      "packaged_sha256": "67199d7011215741ec4d8c7f3a6a6fcd808ead1ddaa40050c862a4d40fea6d06"
+    },
+    "accepted-final-manifest.json": {
+      "original_relative_path": "results/analysis-final/artifact_manifest.json",
+      "original_sha256": "5eb39b413fa35200acd8327368b7e5693b79e456aaf5a4b8e932f08e949aacaf",
+      "packaged_sha256": "5eb39b413fa35200acd8327368b7e5693b79e456aaf5a4b8e932f08e949aacaf"
+    },
+    "accepted-pilot-manifest.json": {
+      "original_relative_path": "runs/fused-20261108/artifact_manifest.json",
+      "original_sha256": "d94240382deaf3cd3da9da334911780fbd7c439a9ba6fad6ab23325482ca2250",
+      "packaged_sha256": "d94240382deaf3cd3da9da334911780fbd7c439a9ba6fad6ab23325482ca2250"
+    },
+    "pilot-handoff-pairs.json": {
+      "derived_from": "pilot-summary.json and its SHA-verified original comparison inputs",
+      "original_relative_path": null,
+      "original_sha256": null,
+      "packaged_sha256": "5f10e7a841a5e8e4acd1d8ad0a55a70609ecd30ac1c3d04b1014849f9c4b0a4a"
+    }
+  },
+  "scope": "Exact accepted JSON snapshots plus compact paired timings; no full raw benchmark outputs are required for figure regeneration."
+}

@@ -1,0 +1,923 @@
+{
+  "scope": "81 exact same-block/same-prompt transfer pairs; nine unique pilot prompts repeated in three blocks",
+  "source_summary_sha256": "c77ebdf40f53ee0e27d02bfdff2b6d2ee4e4b296b1855d48f3075fd333468b64",
+  "raw_source_sha256": [
+    {
+      "original_relative_path": "runs/fused-20261108/comparison/block-0-pytorch_packed_v1.jsonl",
+      "sha256": "605c1e6970fbb53882ff830372c42db3f5a3b32ce6498d43bd16a08fdfa2f165"
+    },
+    {
+      "original_relative_path": "runs/fused-20261108/comparison/block-0-triton_packed_v1.jsonl",
+      "sha256": "8d2f7ef93a1575f2554f813d1132f67da403340a6660db79657e4658098c3774"
+    },
+    {
+      "original_relative_path": "runs/fused-20261108/comparison/block-1-pytorch_packed_v1.jsonl",
+      "sha256": "e964a1afd2ce01333bf8c783474ca576aaeacee1c17a024eb935f16fa4bd6578"
+    },
+    {
+      "original_relative_path": "runs/fused-20261108/comparison/block-1-triton_packed_v1.jsonl",
+      "sha256": "31914fdded3565e735682a66a884f5a5c6da673d508b9ea5ea7bb52c5fb596c7"
+    },
+    {
+      "original_relative_path": "runs/fused-20261108/comparison/block-2-pytorch_packed_v1.jsonl",
+      "sha256": "1169707a6de170723e4e5fcd9c91d7cb78c0d626462d78644b0dbd098f9c7c59"
+    },
+    {
+      "original_relative_path": "runs/fused-20261108/comparison/block-2-triton_packed_v1.jsonl",
+      "sha256": "6c95d594b7873c344dfd0b205c592d8edeb510958a82d1ae8d7429fe364f9053"
+    }
+  ],
+  "records": [
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multikey_1/16384/71303/0000",
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "sample_hash": "cd96ea51ee22a25aada20aabbb5d72f0255f4f6496e09f378571089e689cb88c",
+      "backend_ms": {
+        "pytorch_packed_v1": 92.386741,
+        "triton_packed_v1": 87.54485
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multikey_1/16384/71303/0000",
+      "context_tokens": 16384,
+      "precision": "int4",
+      "sample_hash": "cd96ea51ee22a25aada20aabbb5d72f0255f4f6496e09f378571089e689cb88c",
+      "backend_ms": {
+        "pytorch_packed_v1": 144.277274,
+        "triton_packed_v1": 43.926963
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multikey_1/16384/71303/0000",
+      "context_tokens": 16384,
+      "precision": "int8",
+      "sample_hash": "cd96ea51ee22a25aada20aabbb5d72f0255f4f6496e09f378571089e689cb88c",
+      "backend_ms": {
+        "pytorch_packed_v1": 122.789807,
+        "triton_packed_v1": 46.600522
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multikey_1/4096/71301/0000",
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "sample_hash": "af46d84a0c4c83c1a0c65ea0f40daa811f5d95872b3c0eb6121e28aee5075212",
+      "backend_ms": {
+        "pytorch_packed_v1": 24.981353,
+        "triton_packed_v1": 22.623586
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multikey_1/4096/71301/0000",
+      "context_tokens": 4096,
+      "precision": "int4",
+      "sample_hash": "af46d84a0c4c83c1a0c65ea0f40daa811f5d95872b3c0eb6121e28aee5075212",
+      "backend_ms": {
+        "pytorch_packed_v1": 73.941755,
+        "triton_packed_v1": 14.998834
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multikey_1/4096/71301/0000",
+      "context_tokens": 4096,
+      "precision": "int8",
+      "sample_hash": "af46d84a0c4c83c1a0c65ea0f40daa811f5d95872b3c0eb6121e28aee5075212",
+      "backend_ms": {
+        "pytorch_packed_v1": 54.993473,
+        "triton_packed_v1": 18.561928
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multikey_1/8192/71302/0000",
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "sample_hash": "b8b55c8fb18b2afcd61d8eccb8205034b816cefcd6080b3439a439751962b829",
+      "backend_ms": {
+        "pytorch_packed_v1": 49.394513,
+        "triton_packed_v1": 46.010699
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multikey_1/8192/71302/0000",
+      "context_tokens": 8192,
+      "precision": "int4",
+      "sample_hash": "b8b55c8fb18b2afcd61d8eccb8205034b816cefcd6080b3439a439751962b829",
+      "backend_ms": {
+        "pytorch_packed_v1": 93.068818,
+        "triton_packed_v1": 25.445099
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multikey_1/8192/71302/0000",
+      "context_tokens": 8192,
+      "precision": "int8",
+      "sample_hash": "b8b55c8fb18b2afcd61d8eccb8205034b816cefcd6080b3439a439751962b829",
+      "backend_ms": {
+        "pytorch_packed_v1": 69.327373,
+        "triton_packed_v1": 26.059418
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multiquery/16384/71403/0000",
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "sample_hash": "518df21b4ece249f3016b5e38e9e1daa8571d6a0732b759c569388851f90500e",
+      "backend_ms": {
+        "pytorch_packed_v1": 80.505292,
+        "triton_packed_v1": 79.762467
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multiquery/16384/71403/0000",
+      "context_tokens": 16384,
+      "precision": "int4",
+      "sample_hash": "518df21b4ece249f3016b5e38e9e1daa8571d6a0732b759c569388851f90500e",
+      "backend_ms": {
+        "pytorch_packed_v1": 141.776985,
+        "triton_packed_v1": 41.812478
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multiquery/16384/71403/0000",
+      "context_tokens": 16384,
+      "precision": "int8",
+      "sample_hash": "518df21b4ece249f3016b5e38e9e1daa8571d6a0732b759c569388851f90500e",
+      "backend_ms": {
+        "pytorch_packed_v1": 123.330525,
+        "triton_packed_v1": 49.02551
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multiquery/4096/71401/0000",
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "sample_hash": "72e93b89053f50df8fe3723e11b7d0cfc7f7abb0a772a8d3e0640316630c674c",
+      "backend_ms": {
+        "pytorch_packed_v1": 28.126775,
+        "triton_packed_v1": 26.463319
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multiquery/4096/71401/0000",
+      "context_tokens": 4096,
+      "precision": "int4",
+      "sample_hash": "72e93b89053f50df8fe3723e11b7d0cfc7f7abb0a772a8d3e0640316630c674c",
+      "backend_ms": {
+        "pytorch_packed_v1": 76.282713,
+        "triton_packed_v1": 17.321076
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multiquery/4096/71401/0000",
+      "context_tokens": 4096,
+      "precision": "int8",
+      "sample_hash": "72e93b89053f50df8fe3723e11b7d0cfc7f7abb0a772a8d3e0640316630c674c",
+      "backend_ms": {
+        "pytorch_packed_v1": 55.632988,
+        "triton_packed_v1": 18.98083
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multiquery/8192/71402/0000",
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "sample_hash": "3bc12a1fe2b1451a452c8292710da94376e19f8f4138fc4e6b4390d2842da0e6",
+      "backend_ms": {
+        "pytorch_packed_v1": 40.605618,
+        "triton_packed_v1": 37.204664
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multiquery/8192/71402/0000",
+      "context_tokens": 8192,
+      "precision": "int4",
+      "sample_hash": "3bc12a1fe2b1451a452c8292710da94376e19f8f4138fc4e6b4390d2842da0e6",
+      "backend_ms": {
+        "pytorch_packed_v1": 87.83787,
+        "triton_packed_v1": 23.9599
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_multiquery/8192/71402/0000",
+      "context_tokens": 8192,
+      "precision": "int8",
+      "sample_hash": "3bc12a1fe2b1451a452c8292710da94376e19f8f4138fc4e6b4390d2842da0e6",
+      "backend_ms": {
+        "pytorch_packed_v1": 70.205018,
+        "triton_packed_v1": 42.799413
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_single_2/16384/71203/0000",
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "sample_hash": "26a1618651046cfbd8b10bb962de6797444090e2bd1ea1ab57722cf2db3a4c05",
+      "backend_ms": {
+        "pytorch_packed_v1": 81.347614,
+        "triton_packed_v1": 75.850407
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_single_2/16384/71203/0000",
+      "context_tokens": 16384,
+      "precision": "int4",
+      "sample_hash": "26a1618651046cfbd8b10bb962de6797444090e2bd1ea1ab57722cf2db3a4c05",
+      "backend_ms": {
+        "pytorch_packed_v1": 143.158288,
+        "triton_packed_v1": 43.408716
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_single_2/16384/71203/0000",
+      "context_tokens": 16384,
+      "precision": "int8",
+      "sample_hash": "26a1618651046cfbd8b10bb962de6797444090e2bd1ea1ab57722cf2db3a4c05",
+      "backend_ms": {
+        "pytorch_packed_v1": 123.374996,
+        "triton_packed_v1": 49.984812
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_single_2/4096/71201/0000",
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "sample_hash": "ae20f6b92ef6d64b9a425ab1ac093355a3a908222881894c46a49022ae5f9755",
+      "backend_ms": {
+        "pytorch_packed_v1": 24.689581,
+        "triton_packed_v1": 23.520416
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_single_2/4096/71201/0000",
+      "context_tokens": 4096,
+      "precision": "int4",
+      "sample_hash": "ae20f6b92ef6d64b9a425ab1ac093355a3a908222881894c46a49022ae5f9755",
+      "backend_ms": {
+        "pytorch_packed_v1": 73.44203,
+        "triton_packed_v1": 15.608377
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_single_2/4096/71201/0000",
+      "context_tokens": 4096,
+      "precision": "int8",
+      "sample_hash": "ae20f6b92ef6d64b9a425ab1ac093355a3a908222881894c46a49022ae5f9755",
+      "backend_ms": {
+        "pytorch_packed_v1": 56.687741,
+        "triton_packed_v1": 20.266483
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_single_2/8192/71202/0000",
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "sample_hash": "41a8e4dbf66a316935a9fe6740d08d05baa5a58d668bef52e8c614c13a350a04",
+      "backend_ms": {
+        "pytorch_packed_v1": 43.352878,
+        "triton_packed_v1": 40.244657
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_single_2/8192/71202/0000",
+      "context_tokens": 8192,
+      "precision": "int4",
+      "sample_hash": "41a8e4dbf66a316935a9fe6740d08d05baa5a58d668bef52e8c614c13a350a04",
+      "backend_ms": {
+        "pytorch_packed_v1": 105.331739,
+        "triton_packed_v1": 24.669039
+      }
+    },
+    {
+      "block": 0,
+      "sample_id": "pilot/niah_single_2/8192/71202/0000",
+      "context_tokens": 8192,
+      "precision": "int8",
+      "sample_hash": "41a8e4dbf66a316935a9fe6740d08d05baa5a58d668bef52e8c614c13a350a04",
+      "backend_ms": {
+        "pytorch_packed_v1": 71.721206,
+        "triton_packed_v1": 50.92353
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multikey_1/16384/71303/0000",
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "sample_hash": "cd96ea51ee22a25aada20aabbb5d72f0255f4f6496e09f378571089e689cb88c",
+      "backend_ms": {
+        "pytorch_packed_v1": 98.815626,
+        "triton_packed_v1": 97.00237
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multikey_1/16384/71303/0000",
+      "context_tokens": 16384,
+      "precision": "int4",
+      "sample_hash": "cd96ea51ee22a25aada20aabbb5d72f0255f4f6496e09f378571089e689cb88c",
+      "backend_ms": {
+        "pytorch_packed_v1": 144.721294,
+        "triton_packed_v1": 44.434951
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multikey_1/16384/71303/0000",
+      "context_tokens": 16384,
+      "precision": "int8",
+      "sample_hash": "cd96ea51ee22a25aada20aabbb5d72f0255f4f6496e09f378571089e689cb88c",
+      "backend_ms": {
+        "pytorch_packed_v1": 123.899106,
+        "triton_packed_v1": 57.457668
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multikey_1/4096/71301/0000",
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "sample_hash": "af46d84a0c4c83c1a0c65ea0f40daa811f5d95872b3c0eb6121e28aee5075212",
+      "backend_ms": {
+        "pytorch_packed_v1": 25.075942,
+        "triton_packed_v1": 23.88219
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multikey_1/4096/71301/0000",
+      "context_tokens": 4096,
+      "precision": "int4",
+      "sample_hash": "af46d84a0c4c83c1a0c65ea0f40daa811f5d95872b3c0eb6121e28aee5075212",
+      "backend_ms": {
+        "pytorch_packed_v1": 82.665352,
+        "triton_packed_v1": 16.585018
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multikey_1/4096/71301/0000",
+      "context_tokens": 4096,
+      "precision": "int8",
+      "sample_hash": "af46d84a0c4c83c1a0c65ea0f40daa811f5d95872b3c0eb6121e28aee5075212",
+      "backend_ms": {
+        "pytorch_packed_v1": 55.462811,
+        "triton_packed_v1": 19.977455
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multikey_1/8192/71302/0000",
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "sample_hash": "b8b55c8fb18b2afcd61d8eccb8205034b816cefcd6080b3439a439751962b829",
+      "backend_ms": {
+        "pytorch_packed_v1": 54.15376,
+        "triton_packed_v1": 48.712689
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multikey_1/8192/71302/0000",
+      "context_tokens": 8192,
+      "precision": "int4",
+      "sample_hash": "b8b55c8fb18b2afcd61d8eccb8205034b816cefcd6080b3439a439751962b829",
+      "backend_ms": {
+        "pytorch_packed_v1": 92.361862,
+        "triton_packed_v1": 25.916637
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multikey_1/8192/71302/0000",
+      "context_tokens": 8192,
+      "precision": "int8",
+      "sample_hash": "b8b55c8fb18b2afcd61d8eccb8205034b816cefcd6080b3439a439751962b829",
+      "backend_ms": {
+        "pytorch_packed_v1": 70.938228,
+        "triton_packed_v1": 27.124738
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multiquery/16384/71403/0000",
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "sample_hash": "518df21b4ece249f3016b5e38e9e1daa8571d6a0732b759c569388851f90500e",
+      "backend_ms": {
+        "pytorch_packed_v1": 80.333574,
+        "triton_packed_v1": 75.995838
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multiquery/16384/71403/0000",
+      "context_tokens": 16384,
+      "precision": "int4",
+      "sample_hash": "518df21b4ece249f3016b5e38e9e1daa8571d6a0732b759c569388851f90500e",
+      "backend_ms": {
+        "pytorch_packed_v1": 142.003736,
+        "triton_packed_v1": 41.790367
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multiquery/16384/71403/0000",
+      "context_tokens": 16384,
+      "precision": "int8",
+      "sample_hash": "518df21b4ece249f3016b5e38e9e1daa8571d6a0732b759c569388851f90500e",
+      "backend_ms": {
+        "pytorch_packed_v1": 124.481166,
+        "triton_packed_v1": 48.813824
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multiquery/4096/71401/0000",
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "sample_hash": "72e93b89053f50df8fe3723e11b7d0cfc7f7abb0a772a8d3e0640316630c674c",
+      "backend_ms": {
+        "pytorch_packed_v1": 29.013982,
+        "triton_packed_v1": 28.748747
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multiquery/4096/71401/0000",
+      "context_tokens": 4096,
+      "precision": "int4",
+      "sample_hash": "72e93b89053f50df8fe3723e11b7d0cfc7f7abb0a772a8d3e0640316630c674c",
+      "backend_ms": {
+        "pytorch_packed_v1": 76.421083,
+        "triton_packed_v1": 17.94161
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multiquery/4096/71401/0000",
+      "context_tokens": 4096,
+      "precision": "int8",
+      "sample_hash": "72e93b89053f50df8fe3723e11b7d0cfc7f7abb0a772a8d3e0640316630c674c",
+      "backend_ms": {
+        "pytorch_packed_v1": 56.224303,
+        "triton_packed_v1": 28.488797
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multiquery/8192/71402/0000",
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "sample_hash": "3bc12a1fe2b1451a452c8292710da94376e19f8f4138fc4e6b4390d2842da0e6",
+      "backend_ms": {
+        "pytorch_packed_v1": 40.912016,
+        "triton_packed_v1": 40.444969
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multiquery/8192/71402/0000",
+      "context_tokens": 8192,
+      "precision": "int4",
+      "sample_hash": "3bc12a1fe2b1451a452c8292710da94376e19f8f4138fc4e6b4390d2842da0e6",
+      "backend_ms": {
+        "pytorch_packed_v1": 88.562171,
+        "triton_packed_v1": 24.054707
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_multiquery/8192/71402/0000",
+      "context_tokens": 8192,
+      "precision": "int8",
+      "sample_hash": "3bc12a1fe2b1451a452c8292710da94376e19f8f4138fc4e6b4390d2842da0e6",
+      "backend_ms": {
+        "pytorch_packed_v1": 70.9145,
+        "triton_packed_v1": 28.777476
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_single_2/16384/71203/0000",
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "sample_hash": "26a1618651046cfbd8b10bb962de6797444090e2bd1ea1ab57722cf2db3a4c05",
+      "backend_ms": {
+        "pytorch_packed_v1": 81.638,
+        "triton_packed_v1": 91.350167
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_single_2/16384/71203/0000",
+      "context_tokens": 16384,
+      "precision": "int4",
+      "sample_hash": "26a1618651046cfbd8b10bb962de6797444090e2bd1ea1ab57722cf2db3a4c05",
+      "backend_ms": {
+        "pytorch_packed_v1": 159.258929,
+        "triton_packed_v1": 50.048103
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_single_2/16384/71203/0000",
+      "context_tokens": 16384,
+      "precision": "int8",
+      "sample_hash": "26a1618651046cfbd8b10bb962de6797444090e2bd1ea1ab57722cf2db3a4c05",
+      "backend_ms": {
+        "pytorch_packed_v1": 130.966835,
+        "triton_packed_v1": 49.458519
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_single_2/4096/71201/0000",
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "sample_hash": "ae20f6b92ef6d64b9a425ab1ac093355a3a908222881894c46a49022ae5f9755",
+      "backend_ms": {
+        "pytorch_packed_v1": 24.749515,
+        "triton_packed_v1": 24.15522
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_single_2/4096/71201/0000",
+      "context_tokens": 4096,
+      "precision": "int4",
+      "sample_hash": "ae20f6b92ef6d64b9a425ab1ac093355a3a908222881894c46a49022ae5f9755",
+      "backend_ms": {
+        "pytorch_packed_v1": 76.168405,
+        "triton_packed_v1": 15.750894
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_single_2/4096/71201/0000",
+      "context_tokens": 4096,
+      "precision": "int8",
+      "sample_hash": "ae20f6b92ef6d64b9a425ab1ac093355a3a908222881894c46a49022ae5f9755",
+      "backend_ms": {
+        "pytorch_packed_v1": 57.180351,
+        "triton_packed_v1": 20.561532
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_single_2/8192/71202/0000",
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "sample_hash": "41a8e4dbf66a316935a9fe6740d08d05baa5a58d668bef52e8c614c13a350a04",
+      "backend_ms": {
+        "pytorch_packed_v1": 43.871033,
+        "triton_packed_v1": 40.35503
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_single_2/8192/71202/0000",
+      "context_tokens": 8192,
+      "precision": "int4",
+      "sample_hash": "41a8e4dbf66a316935a9fe6740d08d05baa5a58d668bef52e8c614c13a350a04",
+      "backend_ms": {
+        "pytorch_packed_v1": 91.316813,
+        "triton_packed_v1": 25.0255
+      }
+    },
+    {
+      "block": 1,
+      "sample_id": "pilot/niah_single_2/8192/71202/0000",
+      "context_tokens": 8192,
+      "precision": "int8",
+      "sample_hash": "41a8e4dbf66a316935a9fe6740d08d05baa5a58d668bef52e8c614c13a350a04",
+      "backend_ms": {
+        "pytorch_packed_v1": 72.080945,
+        "triton_packed_v1": 29.313302
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multikey_1/16384/71303/0000",
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "sample_hash": "cd96ea51ee22a25aada20aabbb5d72f0255f4f6496e09f378571089e689cb88c",
+      "backend_ms": {
+        "pytorch_packed_v1": 101.327817,
+        "triton_packed_v1": 94.112533
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multikey_1/16384/71303/0000",
+      "context_tokens": 16384,
+      "precision": "int4",
+      "sample_hash": "cd96ea51ee22a25aada20aabbb5d72f0255f4f6496e09f378571089e689cb88c",
+      "backend_ms": {
+        "pytorch_packed_v1": 144.961282,
+        "triton_packed_v1": 44.184501
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multikey_1/16384/71303/0000",
+      "context_tokens": 16384,
+      "precision": "int8",
+      "sample_hash": "cd96ea51ee22a25aada20aabbb5d72f0255f4f6496e09f378571089e689cb88c",
+      "backend_ms": {
+        "pytorch_packed_v1": 130.093361,
+        "triton_packed_v1": 48.285392
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multikey_1/4096/71301/0000",
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "sample_hash": "af46d84a0c4c83c1a0c65ea0f40daa811f5d95872b3c0eb6121e28aee5075212",
+      "backend_ms": {
+        "pytorch_packed_v1": 25.339478,
+        "triton_packed_v1": 23.38518
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multikey_1/4096/71301/0000",
+      "context_tokens": 4096,
+      "precision": "int4",
+      "sample_hash": "af46d84a0c4c83c1a0c65ea0f40daa811f5d95872b3c0eb6121e28aee5075212",
+      "backend_ms": {
+        "pytorch_packed_v1": 75.188207,
+        "triton_packed_v1": 16.168776
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multikey_1/4096/71301/0000",
+      "context_tokens": 4096,
+      "precision": "int8",
+      "sample_hash": "af46d84a0c4c83c1a0c65ea0f40daa811f5d95872b3c0eb6121e28aee5075212",
+      "backend_ms": {
+        "pytorch_packed_v1": 55.980889,
+        "triton_packed_v1": 19.211416
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multikey_1/8192/71302/0000",
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "sample_hash": "b8b55c8fb18b2afcd61d8eccb8205034b816cefcd6080b3439a439751962b829",
+      "backend_ms": {
+        "pytorch_packed_v1": 52.307984,
+        "triton_packed_v1": 51.035453
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multikey_1/8192/71302/0000",
+      "context_tokens": 8192,
+      "precision": "int4",
+      "sample_hash": "b8b55c8fb18b2afcd61d8eccb8205034b816cefcd6080b3439a439751962b829",
+      "backend_ms": {
+        "pytorch_packed_v1": 91.819762,
+        "triton_packed_v1": 26.480853
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multikey_1/8192/71302/0000",
+      "context_tokens": 8192,
+      "precision": "int8",
+      "sample_hash": "b8b55c8fb18b2afcd61d8eccb8205034b816cefcd6080b3439a439751962b829",
+      "backend_ms": {
+        "pytorch_packed_v1": 70.595243,
+        "triton_packed_v1": 27.28913
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multiquery/16384/71403/0000",
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "sample_hash": "518df21b4ece249f3016b5e38e9e1daa8571d6a0732b759c569388851f90500e",
+      "backend_ms": {
+        "pytorch_packed_v1": 80.817911,
+        "triton_packed_v1": 75.659268
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multiquery/16384/71403/0000",
+      "context_tokens": 16384,
+      "precision": "int4",
+      "sample_hash": "518df21b4ece249f3016b5e38e9e1daa8571d6a0732b759c569388851f90500e",
+      "backend_ms": {
+        "pytorch_packed_v1": 143.926198,
+        "triton_packed_v1": 41.91064
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multiquery/16384/71403/0000",
+      "context_tokens": 16384,
+      "precision": "int8",
+      "sample_hash": "518df21b4ece249f3016b5e38e9e1daa8571d6a0732b759c569388851f90500e",
+      "backend_ms": {
+        "pytorch_packed_v1": 124.106666,
+        "triton_packed_v1": 48.534247
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multiquery/4096/71401/0000",
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "sample_hash": "72e93b89053f50df8fe3723e11b7d0cfc7f7abb0a772a8d3e0640316630c674c",
+      "backend_ms": {
+        "pytorch_packed_v1": 29.397051,
+        "triton_packed_v1": 30.907169
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multiquery/4096/71401/0000",
+      "context_tokens": 4096,
+      "precision": "int4",
+      "sample_hash": "72e93b89053f50df8fe3723e11b7d0cfc7f7abb0a772a8d3e0640316630c674c",
+      "backend_ms": {
+        "pytorch_packed_v1": 76.2175,
+        "triton_packed_v1": 17.309513
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multiquery/4096/71401/0000",
+      "context_tokens": 4096,
+      "precision": "int8",
+      "sample_hash": "72e93b89053f50df8fe3723e11b7d0cfc7f7abb0a772a8d3e0640316630c674c",
+      "backend_ms": {
+        "pytorch_packed_v1": 58.291227,
+        "triton_packed_v1": 19.696182
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multiquery/8192/71402/0000",
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "sample_hash": "3bc12a1fe2b1451a452c8292710da94376e19f8f4138fc4e6b4390d2842da0e6",
+      "backend_ms": {
+        "pytorch_packed_v1": 56.608609,
+        "triton_packed_v1": 39.236291
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multiquery/8192/71402/0000",
+      "context_tokens": 8192,
+      "precision": "int4",
+      "sample_hash": "3bc12a1fe2b1451a452c8292710da94376e19f8f4138fc4e6b4390d2842da0e6",
+      "backend_ms": {
+        "pytorch_packed_v1": 88.341343,
+        "triton_packed_v1": 23.88988
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_multiquery/8192/71402/0000",
+      "context_tokens": 8192,
+      "precision": "int8",
+      "sample_hash": "3bc12a1fe2b1451a452c8292710da94376e19f8f4138fc4e6b4390d2842da0e6",
+      "backend_ms": {
+        "pytorch_packed_v1": 93.024241,
+        "triton_packed_v1": 28.730259
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_single_2/16384/71203/0000",
+      "context_tokens": 16384,
+      "precision": "bf16",
+      "sample_hash": "26a1618651046cfbd8b10bb962de6797444090e2bd1ea1ab57722cf2db3a4c05",
+      "backend_ms": {
+        "pytorch_packed_v1": 81.46471,
+        "triton_packed_v1": 78.254294
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_single_2/16384/71203/0000",
+      "context_tokens": 16384,
+      "precision": "int4",
+      "sample_hash": "26a1618651046cfbd8b10bb962de6797444090e2bd1ea1ab57722cf2db3a4c05",
+      "backend_ms": {
+        "pytorch_packed_v1": 144.350348,
+        "triton_packed_v1": 43.617631
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_single_2/16384/71203/0000",
+      "context_tokens": 16384,
+      "precision": "int8",
+      "sample_hash": "26a1618651046cfbd8b10bb962de6797444090e2bd1ea1ab57722cf2db3a4c05",
+      "backend_ms": {
+        "pytorch_packed_v1": 125.051597,
+        "triton_packed_v1": 52.702322
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_single_2/4096/71201/0000",
+      "context_tokens": 4096,
+      "precision": "bf16",
+      "sample_hash": "ae20f6b92ef6d64b9a425ab1ac093355a3a908222881894c46a49022ae5f9755",
+      "backend_ms": {
+        "pytorch_packed_v1": 24.80695,
+        "triton_packed_v1": 24.095373
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_single_2/4096/71201/0000",
+      "context_tokens": 4096,
+      "precision": "int4",
+      "sample_hash": "ae20f6b92ef6d64b9a425ab1ac093355a3a908222881894c46a49022ae5f9755",
+      "backend_ms": {
+        "pytorch_packed_v1": 73.449333,
+        "triton_packed_v1": 15.82551
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_single_2/4096/71201/0000",
+      "context_tokens": 4096,
+      "precision": "int8",
+      "sample_hash": "ae20f6b92ef6d64b9a425ab1ac093355a3a908222881894c46a49022ae5f9755",
+      "backend_ms": {
+        "pytorch_packed_v1": 61.719277,
+        "triton_packed_v1": 35.923668
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_single_2/8192/71202/0000",
+      "context_tokens": 8192,
+      "precision": "bf16",
+      "sample_hash": "41a8e4dbf66a316935a9fe6740d08d05baa5a58d668bef52e8c614c13a350a04",
+      "backend_ms": {
+        "pytorch_packed_v1": 43.12613,
+        "triton_packed_v1": 40.322183
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_single_2/8192/71202/0000",
+      "context_tokens": 8192,
+      "precision": "int4",
+      "sample_hash": "41a8e4dbf66a316935a9fe6740d08d05baa5a58d668bef52e8c614c13a350a04",
+      "backend_ms": {
+        "pytorch_packed_v1": 90.151629,
+        "triton_packed_v1": 24.865934
+      }
+    },
+    {
+      "block": 2,
+      "sample_id": "pilot/niah_single_2/8192/71202/0000",
+      "context_tokens": 8192,
+      "precision": "int8",
+      "sample_hash": "41a8e4dbf66a316935a9fe6740d08d05baa5a58d668bef52e8c614c13a350a04",
+      "backend_ms": {
+        "pytorch_packed_v1": 71.838639,
+        "triton_packed_v1": 28.479075
+      }
+    }
+  ]
+}

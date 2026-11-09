@@ -1,26 +1,10 @@
-//! Prefill side: encode chunks and RDMA-write them into the decode worker's slot.
-//!
-//! Pipeline for one handoff (Ring staging):
-//!
-//! ```text
-//! stream:   [enc c0][enc c1][enc c2][enc c3] ...          (GPU, in order)
-//! writers:        [wait ev0 → WRITE c0]                    (tokio tasks)
-//!                         [wait ev1 → WRITE c1]
-//!                                 [wait ev2 → WRITE c2] ...
-//! ```
-//!
-//! * Encoding is enqueued as fast as staging space allows; a full ring is the
-//!   backpressure that stops the encoder running ahead of the network.
-//! * Each write runs in its own spawned task that owns its `StagingLease`. If
-//!   writes were polled inline, waiting on `staging.acquire` would stop them
-//!   from completing and freeing space: a deadlock.
-//! * Writes may complete in any order (EFA SRD is unordered). The receiver
-//!   counts immediates per group, so nothing relies on ordering.
-//! * The trailer goes last, once every frame write has completed, so its
-//!   `sender_transfer_ns` is final. It is counted in the last group.
-
-use std::{sync::Arc, time::Instant};
-
+//! Sender: sequential staging is the default; ring overlap is opt-in.
+use crate::{
+    config::{DataPlaneConfig, StagingMode},
+    gpu::Gpu,
+    staging::{StagingLease, StagingRing},
+    throttle::Throttle,
+};
 use bonsai_codec::{Backend, CodecSet};
 use bonsai_core::{
     BonsaiError, CudaStream, HandoffTrailer, ImmTag, KvSource, Result, SenderTimings,
@@ -28,25 +12,19 @@ use bonsai_core::{
     wire::TRAILER_BYTES,
 };
 use bonsai_transport::{Transport, WriteOp};
-use tokio::{sync::oneshot, task::JoinSet};
-
-use crate::{config::DataPlaneConfig, gpu::Gpu, staging::StagingRing, throttle::Throttle};
-
+use std::{sync::Arc, time::Instant};
+use tokio::{sync::oneshot, task::JoinHandle};
 pub struct SendJob {
     pub params: HandoffParams,
-    /// Borrowed view of the HF cache. The caller keeps the tensors alive until `send` returns.
+    /// Borrowed tensors must remain alive until send completes. If the caller
+    /// cancels the future, it must retain tensors until the CUDA stream drains.
     pub source: KvSource,
-    /// The stream prefill ran on; encode is ordered after prefill on it.
     pub stream: CudaStream,
     pub first_token: u32,
-    /// The decode worker's grant, forwarded by the coordinator. May arrive
-    /// before or after prefill finishes.
     pub grant: oneshot::Receiver<SlotGrant>,
-    /// Host time when prefill finished (start of handoff latency).
     pub prefill_done: Instant,
     pub prefill_ns: u64,
 }
-
 pub struct KvSender<T: Transport, G: Gpu> {
     transport: Arc<T>,
     gpu: Arc<G>,
@@ -54,95 +32,273 @@ pub struct KvSender<T: Transport, G: Gpu> {
     throttle: Option<Arc<Throttle>>,
     cfg: DataPlaneConfig,
 }
-
 impl<T: Transport, G: Gpu> KvSender<T, G> {
-    pub fn new(transport: Arc<T>, gpu: Arc<G>, staging: Arc<StagingRing<T>>, cfg: DataPlaneConfig) -> Self {
-        let throttle = cfg.throttle_bps.map(|bps| Arc::new(Throttle::new(bps, 4 << 20)));
-        KvSender { transport, gpu, staging, throttle, cfg }
+    pub fn new(
+        transport: Arc<T>,
+        gpu: Arc<G>,
+        staging: Arc<StagingRing<T>>,
+        cfg: DataPlaneConfig,
+    ) -> Self {
+        let throttle = cfg
+            .throttle_bps
+            .map(|bps| Arc::new(Throttle::new(bps, 4 << 20)));
+        Self {
+            transport,
+            gpu,
+            staging,
+            throttle,
+            cfg,
+        }
     }
-
     pub async fn send(&self, job: SendJob) -> Result<SenderTimings> {
+        if self.cfg.verify_checksums {
+            return Err(BonsaiError::InvalidConfig(
+                "frame checksum verification is not supported".into(),
+            ));
+        }
+        if self.cfg.throttle_bps == Some(0)
+            || self.cfg.max_inflight_writes == 0
+            || self.cfg.staging != self.staging.mode()
+        {
+            return Err(BonsaiError::InvalidConfig(
+                "staging mode mismatch or zero write concurrency".into(),
+            ));
+        }
+        let sender = Self {
+            transport: self.transport.clone(),
+            gpu: self.gpu.clone(),
+            staging: self.staging.clone(),
+            throttle: self.throttle.clone(),
+            cfg: self.cfg.clone(),
+        };
+        // Detached on cancellation: do not release staging while CUDA or NIC
+        // operations still use it. This also bounds lifetimes on early errors.
+        tokio::spawn(async move { sender.send_inner(job).await })
+            .await
+            .map_err(|e| BonsaiError::Transport(e.to_string()))?
+    }
+    async fn send_inner(&self, job: SendJob) -> Result<SenderTimings> {
         let plan = job.params.plan()?;
+        crate::validate_view(
+            &job.source,
+            job.params.layout,
+            job.params.seq_len,
+            self.cfg.cuda_device,
+        )?;
         let codecs = CodecSet::for_plan(&plan, Backend::Cuda)?;
-        let mut t = SenderTimings { prefill_ns: job.prefill_ns, ..Default::default() };
-
-        // 1. The only point where the sender waits on the control plane.
-        let grant = job.grant.await.map_err(|_| BonsaiError::Aborted(job.params.handoff, "grant dropped".into()))?;
-        t.grant_wait_ns = job.prefill_done.elapsed().as_nanos() as u64;
-        if grant.len < plan.slot_bytes {
-            return Err(BonsaiError::Protocol(format!("slot {} B < plan {} B", grant.len, plan.slot_bytes)));
+        let mut t = SenderTimings {
+            prefill_ns: job.prefill_ns,
+            ..Default::default()
+        };
+        let wait_start = Instant::now();
+        let grant = job
+            .grant
+            .await
+            .map_err(|_| BonsaiError::Aborted(job.params.handoff, "grant dropped".into()))?;
+        t.grant_wait_ns = wait_start.elapsed().as_nanos() as u64;
+        if grant.handoff != job.params.handoff
+            || grant.len < plan.slot_bytes
+            || grant.base_offset.checked_add(plan.slot_bytes).is_none()
+            || grant.slot.index >= ImmTag::MAX_SLOTS
+        {
+            return Err(BonsaiError::Protocol(
+                "grant identity or bounds mismatch".into(),
+            ));
         }
         let remote = self.transport.resolve_remote(&grant.region)?;
-
-        // 2. Encode + write every chunk.
-        let mut writes = JoinSet::new();
-        let mut first_ev = None;
-        for chunk in &plan.chunks {
+        let mut whole = if matches!(self.cfg.staging, StagingMode::Whole { .. }) {
             let wait_start = Instant::now();
-            let lease = self.staging.acquire(chunk.frame_len).await?;
+            let lease = self.staging.acquire(plan.slot_bytes).await?;
             t.staging_wait_ns += wait_start.elapsed().as_nanos() as u64;
-
-            codecs.get(chunk).encode_chunk(&job.source, chunk, lease.ptr, job.stream)?;
-            let ev = self.gpu.record(job.stream)?;
-            if first_ev.is_none() {
-                first_ev = Some(self.gpu.record(job.stream)?);
-            }
-
-            let op = WriteOp {
-                src: self.staging.region().clone(),
-                src_offset: lease.offset,
-                len: chunk.frame_len,
-                dst: remote.clone(),
-                dst_offset: grant.base_offset + chunk.frame_offset,
-                imm: Some(ImmTag::new(grant.slot, chunk.group)),
-                shards: self.cfg.write_shards,
+            Some(lease)
+        } else {
+            None
+        };
+        let permits = Arc::new(tokio::sync::Semaphore::new(
+            self.cfg.max_inflight_writes as usize,
+        ));
+        let mut writes: Vec<JoinHandle<Result<()>>> = Vec::new();
+        let transfer_start = Instant::now();
+        let mut encode_error = None;
+        for chunk in &plan.chunks {
+            let lease = if whole.is_none() {
+                let start = Instant::now();
+                let lease = self.staging.acquire(chunk.frame_len).await?;
+                t.staging_wait_ns += start.elapsed().as_nanos() as u64;
+                Some(lease)
+            } else {
+                None
             };
-            let (gpu, transport, throttle) = (self.gpu.clone(), self.transport.clone(), self.throttle.clone());
-            writes.spawn(async move {
-                gpu.completed(&ev).await?;
-                if let Some(th) = throttle {
-                    th.acquire(op.len).await;
+            let (ptr, offset) = match (&whole, &lease) {
+                (Some(all), _) => (
+                    all.ptr.offset(chunk.frame_offset),
+                    all.offset + chunk.frame_offset,
+                ),
+                (_, Some(one)) => (one.ptr, one.offset),
+                _ => unreachable!(),
+            };
+            let start = self.gpu.record(job.stream)?;
+            let encoded = codecs
+                .get(chunk)
+                .encode_chunk(&job.source, chunk, ptr, job.stream);
+            let end = match self.gpu.record(job.stream) {
+                Ok(ev) => ev,
+                Err(e) => {
+                    std::mem::forget(lease);
+                    std::mem::forget(whole.take());
+                    return Err(e);
                 }
-                let r = transport.write(op).await;
-                drop(lease); // staging space is free only after the NIC is done with it
-                r
-            });
-
+            };
+            // Complete each encode before observing an encode error or allowing
+            // a lease to be dropped. Whole mode does not post any writes yet.
+            if let Err(e) = self.gpu.completed(&end).await {
+                std::mem::forget(lease);
+                std::mem::forget(whole.take());
+                return Err(e);
+            }
+            t.encode_gpu_ns = t
+                .encode_gpu_ns
+                .saturating_add(self.gpu.elapsed_ns(&start, &end)?);
+            if let Err(e) = encoded {
+                encode_error = Some(e);
+                break;
+            }
+            if let Some(lease) = lease {
+                let permit = permits
+                    .clone()
+                    .acquire_owned()
+                    .await
+                    .map_err(|_| BonsaiError::StagingExhausted)?;
+                let (transport, throttle) = (self.transport.clone(), self.throttle.clone());
+                let op = WriteOp {
+                    src: self.staging.region().clone(),
+                    src_offset: offset,
+                    len: chunk.frame_len,
+                    dst: remote.clone(),
+                    dst_offset: grant.base_offset + chunk.frame_offset,
+                    imm: Some(ImmTag::new(grant.slot, chunk.group)),
+                    shards: self.cfg.write_shards,
+                };
+                writes.push(tokio::spawn(async move {
+                    let lease = lease;
+                    let _permit = permit;
+                    if let Some(th) = throttle {
+                        th.acquire(op.len).await;
+                    }
+                    let result = transport.write(op).await;
+                    if result.is_err() {
+                        std::mem::forget(lease);
+                    }
+                    result
+                }));
+            }
             t.wire_bytes += chunk.frame_len;
             t.useful_bytes += chunk.useful_bytes();
             t.metadata_bytes += chunk.sections.k_meta.len + chunk.sections.v_meta.len;
             t.num_writes += 1;
         }
-        while let Some(r) = writes.join_next().await {
-            r.map_err(|e| BonsaiError::Transport(e.to_string()))??;
+        let mut write_error = None;
+        // Join every operation even when an earlier write failed. Detached
+        // children retain their leases if this parent task is cancelled.
+        for write in writes {
+            match write.await {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => {
+                    write_error.get_or_insert(e);
+                }
+                Err(e) => {
+                    write_error.get_or_insert(BonsaiError::Transport(e.to_string()));
+                }
+            }
         }
-
-        // 3. Trailer.
+        if let Some(e) = encode_error.or(write_error) {
+            return Err(e);
+        }
+        let transfer_start = if whole.is_some() {
+            Instant::now()
+        } else {
+            transfer_start
+        };
+        if let Some(all) = &whole {
+            // Sequential baseline: all encoding has completed before the first write.
+            for chunk in &plan.chunks {
+                if let Some(th) = &self.throttle {
+                    th.acquire(chunk.frame_len).await;
+                }
+                let result = self
+                    .transport
+                    .write(WriteOp {
+                        src: self.staging.region().clone(),
+                        src_offset: all.offset + chunk.frame_offset,
+                        len: chunk.frame_len,
+                        dst: remote.clone(),
+                        dst_offset: grant.base_offset + chunk.frame_offset,
+                        imm: Some(ImmTag::new(grant.slot, chunk.group)),
+                        shards: self.cfg.write_shards,
+                    })
+                    .await;
+                if let Err(e) = result {
+                    std::mem::forget(whole.take());
+                    return Err(e);
+                }
+            }
+        }
+        t.transfer_wall_ns = transfer_start.elapsed().as_nanos() as u64;
         t.handoff_send_ns = job.prefill_done.elapsed().as_nanos() as u64;
         let trailer = HandoffTrailer {
             magic: HandoffTrailer::MAGIC,
             first_token: job.first_token,
             sender_encode_ns: t.encode_gpu_ns,
-            sender_transfer_ns: t.handoff_send_ns,
+            sender_transfer_ns: t.transfer_wall_ns,
             checksum: 0,
         };
-        let lease = self.staging.acquire(TRAILER_BYTES).await?;
-        self.gpu.upload(lease.ptr, &trailer.to_bytes(), job.stream)?;
-        let ev = self.gpu.record(job.stream)?;
-        self.gpu.completed(&ev).await?;
-        self.transport
+        let mut trailer_lease: Option<StagingLease> = if whole.is_none() {
+            Some(self.staging.acquire(TRAILER_BYTES).await?)
+        } else {
+            None
+        };
+        let (ptr, offset) = match (&whole, &trailer_lease) {
+            (Some(all), _) => (
+                all.ptr.offset(plan.trailer_offset),
+                all.offset + plan.trailer_offset,
+            ),
+            (_, Some(one)) => (one.ptr, one.offset),
+            _ => unreachable!(),
+        };
+        if let Err(e) = self.gpu.upload(ptr, &trailer.to_bytes(), job.stream) {
+            std::mem::forget(whole.take());
+            std::mem::forget(trailer_lease.take());
+            return Err(e);
+        }
+        let ev = match self.gpu.record(job.stream) {
+            Ok(ev) => ev,
+            Err(e) => {
+                std::mem::forget(whole.take());
+                std::mem::forget(trailer_lease.take());
+                return Err(e);
+            }
+        };
+        if let Err(e) = self.gpu.completed(&ev).await {
+            std::mem::forget(whole.take());
+            std::mem::forget(trailer_lease.take());
+            return Err(e);
+        }
+        if let Err(e) = self
+            .transport
             .write(WriteOp {
                 src: self.staging.region().clone(),
-                src_offset: lease.offset,
+                src_offset: offset,
                 len: TRAILER_BYTES,
                 dst: remote,
                 dst_offset: grant.base_offset + plan.trailer_offset,
                 imm: Some(ImmTag::new(grant.slot, plan.num_groups - 1)),
                 shards: self.cfg.write_shards,
             })
-            .await?;
-        if let Some(first) = first_ev {
-            t.encode_gpu_ns = self.gpu.elapsed_ns(&first, &ev)?; // upper bound: includes stream gaps
+            .await
+        {
+            std::mem::forget(whole.take());
+            std::mem::forget(trailer_lease.take());
+            return Err(e);
         }
         t.wire_bytes += TRAILER_BYTES;
         t.num_writes += 1;
